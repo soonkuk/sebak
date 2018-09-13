@@ -328,9 +328,11 @@ func FinishOperationCreateAccount(st *storage.LevelDBBackend, tx transaction.Tra
 		err = nil
 	}
 
-	baTarget = NewBlockAccount(
-		op.B.TargetAddress(),
-		op.B.GetAmount(),
+	body := op.B.(transaction.OperationBodyCreateAccount)
+	baTarget = NewBlockAccountLinked(
+		body.TargetAddress(),
+		body.GetAmount(),
+		body.Linked,
 	)
 	if err = baTarget.Save(st); err != nil {
 		return

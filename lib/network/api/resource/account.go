@@ -25,6 +25,7 @@ func (a Account) GetMap() hal.Entry {
 		"account_id":  a.ba.Address,
 		"sequence_id": a.ba.SequenceID,
 		"balance":     a.ba.Balance,
+		"linked":      a.ba.Linked,
 	}
 }
 
