@@ -384,7 +384,9 @@ func finishBallot(st *storage.LevelDBBackend, b ballot.Ballot, transactionPool *
 			return
 		}
 		for _, op := range tx.B.Operations {
+
 			if err = finishOperation(ts, tx, op); err != nil {
+
 				ts.Discard()
 				return
 			}
@@ -442,142 +444,10 @@ func finishOperationCreateAccount(st *storage.LevelDBBackend, tx transaction.Tra
 		err = nil
 	}
 
-	baTarget = block.NewBlockAccount(
-		op.B.TargetAddress(),
-		op.B.GetAmount(),
-	)
-	if err = baTarget.Save(st); err != nil {
-		return
-	}
-
-	log.Debug("new account created", "source", baSource, "target", baTarget)
-
-	return
-}
-
-func finishOperationPayment(st *storage.LevelDBBackend, tx transaction.Transaction, op transaction.Operation) (err error) {
-	var baSource, baTarget *block.BlockAccount
-	if baSource, err = block.GetBlockAccount(st, tx.B.Source); err != nil {
-		err = errors.ErrorBlockAccountDoesNotExists
-		return
-	}
-	if baTarget, err = block.GetBlockAccount(st, op.B.TargetAddress()); err != nil {
-		err = errors.ErrorBlockAccountDoesNotExists
-		return
-	}
-
-	if err = baTarget.Deposit(op.B.GetAmount()); err != nil {
-		return
-	}
-	if err = baTarget.Save(st); err != nil {
-		return
-	}
-
-	log.Debug("payment done", "source", baSource, "target", baTarget, "amount", op.B.GetAmount())
-
-	return
-}
-
-func finishBallot(st *storage.LevelDBBackend, b ballot.Ballot, transactionPool *transaction.TransactionPool) (blk block.Block, err error) {
-
-	var ts *storage.LevelDBBackend
-	if ts, err = st.OpenTransaction(); err != nil {
-		return
-	}
-
-	transactions := map[string]transaction.Transaction{}
-
-	for _, hash := range b.B.Proposed.Transactions {
-
-		tx, found := transactionPool.Get(hash)
-		if !found {
-			err = errors.ErrorTransactionNotFound
-			return
-		}
-		transactions[hash] = tx
-	}
-
-	blk = block.NewBlockFromBallot(b)
-
-	if err = blk.Save(ts); err != nil {
-		return
-	}
-
-	for _, hash := range b.B.Proposed.Transactions {
-
-		tx := transactions[hash]
-		raw, _ := json.Marshal(tx)
-
-		bt := block.NewBlockTransactionFromTransaction(blk.Hash, blk.Height, tx, raw)
-		if err = bt.Save(ts); err != nil {
-			ts.Discard()
-			return
-		}
-		for _, op := range tx.B.Operations {
-
-			if err = finishOperation(ts, tx, op); err != nil {
-				ts.Discard()
-				return
-			}
-		}
-
-		var baSource *block.BlockAccount
-		if baSource, err = block.GetBlockAccount(ts, tx.B.Source); err != nil {
-			err = errors.ErrorBlockAccountDoesNotExists
-			ts.Discard()
-			return
-		}
-
-		if err = baSource.Withdraw(tx.TotalAmount(true), tx.NextSequenceID()); err != nil {
-			ts.Discard()
-			return
-		}
-
-		if err = baSource.Save(ts); err != nil {
-			ts.Discard()
-			return
-		}
-
-	}
-
-	if err = ts.Commit(); err != nil {
-		ts.Discard()
-	}
-
-	return
-}
-
-// finishOperation do finish the task after consensus by the type of each operation.
-func finishOperation(st *storage.LevelDBBackend, tx transaction.Transaction, op transaction.Operation) (err error) {
-	switch op.H.Type {
-	case transaction.OperationCreateAccount:
-		return finishOperationCreateAccount(st, tx, op)
-	case transaction.OperationPayment:
-		return finishOperationPayment(st, tx, op)
-	default:
-		err = errors.ErrorUnknownOperationType
-		return
-	}
-}
-
-func finishOperationCreateAccount(st *storage.LevelDBBackend, tx transaction.Transaction, op transaction.Operation) (err error) {
-
-	var baSource, baTarget *block.BlockAccount
-	if baSource, err = block.GetBlockAccount(st, tx.B.Source); err != nil {
-		err = errors.ErrorBlockAccountDoesNotExists
-		return
-	}
-	if baTarget, err = block.GetBlockAccount(st, op.B.TargetAddress()); err == nil {
-		err = errors.ErrorBlockAccountAlreadyExists
-		return
-	} else {
-		err = nil
-	}
-
 	body := op.B.(transaction.OperationBodyCreateAccount)
 	baTarget = block.NewBlockAccount(
-		op.B.TargetAddress(),
-		op.B.GetAmount(),
+		body.TargetAddress(),
+		body.GetAmount(),
 		body.Linked,
 	)
 	if err = baTarget.Save(st); err != nil {
@@ -590,9 +460,9 @@ func finishOperationCreateAccount(st *storage.LevelDBBackend, tx transaction.Tra
 }
 
 func finishOperationPayment(st *storage.LevelDBBackend, tx transaction.Transaction, op transaction.Operation) (err error) {
-
 	var baSource, baTarget *block.BlockAccount
 	if baSource, err = block.GetBlockAccount(st, tx.B.Source); err != nil {
+
 		err = errors.ErrorBlockAccountDoesNotExists
 		return
 	}
