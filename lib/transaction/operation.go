@@ -74,7 +74,7 @@ func NewOperationFromInterface(oj OperationFromJSON) (Operation, error) {
 		} else if target, is_target := body["target"].(string); !is_target {
 			return Operation{}, errors.ErrorInvalidOperation
 		} else {
-			op.B = NewOperationBodyCreateAccount(target, amount)
+			op.B = NewOperationBodyCreateAccount(body["target"].(string), amount, body["linked"].(string))
 		}
 	case OperationPayment:
 		if amount, err := common.AmountFromString(fmt.Sprintf("%v", body["amount"])); err != nil {
