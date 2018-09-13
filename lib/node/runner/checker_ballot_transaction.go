@@ -176,7 +176,7 @@ func ValidateTx(st *storage.LevelDBBackend, tx transaction.Transaction) (err err
 	}
 
 	for _, op := range tx.B.Operations {
-		if err = ValidateOp(st, op); err != nil {
+		if err = ValidateOp(st, ba, op); err != nil {
 			return
 		}
 	}
@@ -184,10 +184,12 @@ func ValidateTx(st *storage.LevelDBBackend, tx transaction.Transaction) (err err
 	return
 }
 
-func ValidateOp(st *storage.LevelDBBackend, op transaction.Operation) (err error) {
+func ValidateOp(st *storage.LevelDBBackend, source *block.BlockAccount, op transaction.Operation) (err error) {
 	switch op.H.Type {
 	case transaction.OperationCreateAccount:
-		if _, ok := op.B.(transaction.OperationBodyCreateAccount); !ok {
+		var ok bool
+		var casted transaction.OperationBodyCreateAccount
+		if casted, ok = op.B.(transaction.OperationBodyCreateAccount); !ok {
 			err = errors.ErrorTypeOperationBodyNotMatched
 			return
 		}
@@ -196,15 +198,35 @@ func ValidateOp(st *storage.LevelDBBackend, op transaction.Operation) (err error
 			err = errors.ErrorBlockAccountAlreadyExists
 			return
 		}
+		// If it's a frozen account we check that only whole units are frozen
+		if casted.Linked != "" && (casted.Amount%common.Unit) != 0 {
+			return errors.ErrorFrozenAccountCreationWholeUnit // FIXME
+		}
 	case transaction.OperationPayment:
-		if _, ok := op.B.(transaction.OperationBodyPayment); !ok {
+		var ok bool
+		var casted transaction.OperationBodyPayment
+		if casted, ok = op.B.(transaction.OperationBodyPayment); !ok {
 			err = errors.ErrorTypeOperationBodyNotMatched
 			return
 		}
-		var exists bool
-		if exists, err = block.ExistsBlockAccount(st, op.B.(transaction.OperationBodyPayment).Target); err == nil && !exists {
+		var taccount *block.BlockAccount
+		if taccount, err = block.GetBlockAccount(st, casted.Target); err != nil {
 			err = errors.ErrorBlockAccountDoesNotExists
 			return
+		}
+		// If it's a frozen account, it cannot receive payment
+		if taccount.Linked != "" {
+			err = errors.ErrorFrozenAccountNoDeposit
+			return
+		}
+		// If it's a frozen account, everything must be withdrawn
+		if source.Linked != "" {
+			var expected common.Amount
+			expected, err = source.Balance.Sub(common.BaseFee)
+			if casted.Amount != expected {
+				err = errors.ErrorFrozenAccountMustWithdrawEverything
+				return
+			}
 		}
 	default:
 		err = errors.ErrorUnknownOperationType

@@ -54,4 +54,7 @@ var (
 	ErrorInvalidContentType                   = NewError(147, "found invalid 'Content-Type'")
 	ErrorStorageRecordAlreadyExists           = NewError(148, "record already exists in storage")
 	ErrorStorageCoreError                     = NewError(149, "storage error")
+	ErrorFrozenAccountNoDeposit               = NewError(150, "frozen account can not receive payment")
+	ErrorFrozenAccountCreationWholeUnit       = NewError(151, "frozen account balance must be a whole number of units (10k)")
+	ErrorFrozenAccountMustWithdrawEverything  = NewError(152, "frozen account can only withdraw the full amount (minus tx fee)")
 )
