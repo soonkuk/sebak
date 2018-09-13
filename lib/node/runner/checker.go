@@ -351,22 +351,17 @@ func FinishedBallotStore(c common.Checker, args ...interface{}) (err error) {
 	return
 }
 
-<<<<<<< HEAD
-func finishBallot(st *storage.LevelDBBackend, ballot block.Ballot, transactionPool *transaction.TransactionPool, log logging.Logger) (blk block.Block, err error) {
-=======
 func finishBallot(st *storage.LevelDBBackend, b ballot.Ballot, transactionPool *transaction.TransactionPool) (blk block.Block, err error) {
->>>>>>> move ballot.go and ballot_test.go to ballot and refactoring(Finish functions into checker)
+
 	var ts *storage.LevelDBBackend
 	if ts, err = st.OpenTransaction(); err != nil {
 		return
 	}
 
 	transactions := map[string]transaction.Transaction{}
-<<<<<<< HEAD
+
 	for _, hash := range ballot.B.Proposed.Transactions {
-=======
-	for _, hash := range b.B.Proposed.Transactions {
->>>>>>> move ballot.go and ballot_test.go to ballot and refactoring(Finish functions into checker)
+
 		tx, found := transactionPool.Get(hash)
 		if !found {
 			err = errors.ErrorTransactionNotFound
@@ -375,21 +370,14 @@ func finishBallot(st *storage.LevelDBBackend, b ballot.Ballot, transactionPool *
 		transactions[hash] = tx
 	}
 
-<<<<<<< HEAD
-	blk = block.NewBlockFromBallot(ballot, log)
-
-=======
 	blk = block.NewBlockFromBallot(b)
->>>>>>> move ballot.go and ballot_test.go to ballot and refactoring(Finish functions into checker)
+
 	if err = blk.Save(ts); err != nil {
 		return
 	}
 
-<<<<<<< HEAD
-	for _, hash := range ballot.B.Proposed.Transactions {
-=======
 	for _, hash := range b.B.Proposed.Transactions {
->>>>>>> move ballot.go and ballot_test.go to ballot and refactoring(Finish functions into checker)
+
 		tx := transactions[hash]
 		raw, _ := json.Marshal(tx)
 
@@ -399,11 +387,9 @@ func finishBallot(st *storage.LevelDBBackend, b ballot.Ballot, transactionPool *
 			return
 		}
 		for _, op := range tx.B.Operations {
-<<<<<<< HEAD
-			if err = finishOperation(ts, tx, op, log); err != nil {
-=======
+
 			if err = finishOperation(ts, tx, op); err != nil {
->>>>>>> move ballot.go and ballot_test.go to ballot and refactoring(Finish functions into checker)
+
 				ts.Discard()
 				return
 			}
@@ -436,32 +422,19 @@ func finishBallot(st *storage.LevelDBBackend, b ballot.Ballot, transactionPool *
 }
 
 // finishOperation do finish the task after consensus by the type of each operation.
-<<<<<<< HEAD
-func finishOperation(st *storage.LevelDBBackend, tx transaction.Transaction, op transaction.Operation, log logging.Logger) (err error) {
+func finishOperation(st *storage.LevelDBBackend, tx transaction.Transaction, op transaction.Operation) (err error) {
 	switch op.H.Type {
 	case transaction.OperationCreateAccount:
 		return finishOperationCreateAccount(st, tx, op, log)
 	case transaction.OperationPayment:
 		return finishOperationPayment(st, tx, op, log)
-=======
-func finishOperation(st *storage.LevelDBBackend, tx transaction.Transaction, op transaction.Operation) (err error) {
-	switch op.H.Type {
-	case transaction.OperationCreateAccount:
-		return finishOperationCreateAccount(st, tx, op)
-	case transaction.OperationPayment:
-		return finishOperationPayment(st, tx, op)
->>>>>>> move ballot.go and ballot_test.go to ballot and refactoring(Finish functions into checker)
 	default:
 		err = errors.ErrorUnknownOperationType
 		return
 	}
 }
 
-<<<<<<< HEAD
-func finishOperationCreateAccount(st *storage.LevelDBBackend, tx transaction.Transaction, op transaction.Operation, log logging.Logger) (err error) {
-=======
 func finishOperationCreateAccount(st *storage.LevelDBBackend, tx transaction.Transaction, op transaction.Operation) (err error) {
->>>>>>> move ballot.go and ballot_test.go to ballot and refactoring(Finish functions into checker)
 	var baSource, baTarget *block.BlockAccount
 	if baSource, err = block.GetBlockAccount(st, tx.B.Source); err != nil {
 		err = errors.ErrorBlockAccountDoesNotExists
@@ -474,17 +447,11 @@ func finishOperationCreateAccount(st *storage.LevelDBBackend, tx transaction.Tra
 		err = nil
 	}
 
-<<<<<<< HEAD
 	body := op.B.(transaction.OperationBodyCreateAccount)
 	baTarget = block.NewBlockAccount(
-		op.B.TargetAddress(),
-		op.B.GetAmount(),
+		body.TargetAddress(),
+		body.GetAmount(),
 		body.Linked,
-=======
-	baTarget = block.NewBlockAccount(
-		op.B.TargetAddress(),
-		op.B.GetAmount(),
->>>>>>> move ballot.go and ballot_test.go to ballot and refactoring(Finish functions into checker)
 	)
 	if err = baTarget.Save(st); err != nil {
 		return
@@ -495,13 +462,10 @@ func finishOperationCreateAccount(st *storage.LevelDBBackend, tx transaction.Tra
 	return
 }
 
-<<<<<<< HEAD
-func finishOperationPayment(st *storage.LevelDBBackend, tx transaction.Transaction, op transaction.Operation, log logging.Logger) (err error) {
-=======
 func finishOperationPayment(st *storage.LevelDBBackend, tx transaction.Transaction, op transaction.Operation) (err error) {
->>>>>>> move ballot.go and ballot_test.go to ballot and refactoring(Finish functions into checker)
 	var baSource, baTarget *block.BlockAccount
 	if baSource, err = block.GetBlockAccount(st, tx.B.Source); err != nil {
+
 		err = errors.ErrorBlockAccountDoesNotExists
 		return
 	}
