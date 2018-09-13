@@ -50,4 +50,7 @@ var (
 	ErrorBallotAlreadyVoted                   = NewError(143, "ballot already voted")
 	ErrorBallotHasOverMaxTransactionsInBallot = NewError(144, "too many transactions in ballot")
 	ErrorMessageHasIncorrectTime              = NewError(145, "time in message is not correct")
+	ErrorFrozenAccountNoDeposit               = NewError(146, "frozen account can not receive payment")
+	ErrorFrozenAccountCreationWholeUnit       = NewError(147, "frozen account balance must be a whole number of units (10k)")
+	ErrorFrozenAccountMustWithdrawEverything  = NewError(148, "frozen account can only withdraw the full amount (minus tx fee)")
 )
