@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	logging "github.com/inconshreveable/log15"
 	"github.com/stellar/go/keypair"
 	"github.com/stretchr/testify/require"
 
@@ -72,7 +73,7 @@ func createTestNodeRunner(n int, conf *consensus.ISAACConfiguration) []*NodeRunn
 		st, _ := storage.NewTestMemoryLevelDBBackend()
 
 		account.Save(st)
-		genesisBlock = block.MakeGenesisBlock(st, *account)
+		genesisBlock = block.MakeGenesisBlock(st, *account, logging.New("module", "test"))
 
 		nr, err := NewNodeRunner(string(networkID), localNode, policy, ns[i], is, st, conf)
 		if err != nil {
@@ -176,7 +177,7 @@ func createTestNodeRunnersHTTP2Network(n int) (nodeRunners []*NodeRunner, rootKP
 		nodeRunner, _ := NewNodeRunner(string(networkID), node, policy, n, is, st, consensus.NewISAACConfiguration())
 
 		genesisAccount.Save(nodeRunner.Storage())
-		block.MakeGenesisBlock(st, *genesisAccount)
+		block.MakeGenesisBlock(st, *genesisAccount, logging.New("module", "test"))
 
 		nodeRunners = append(nodeRunners, nodeRunner)
 	}

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/prometheus/common/log"
 	"github.com/stellar/go/keypair"
 
 	"boscoin.io/sebak/lib/common"
