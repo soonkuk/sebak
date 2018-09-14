@@ -9,26 +9,25 @@ import (
 	"boscoin.io/sebak/lib/common"
 )
 
-type OperationBodyPayment struct {
+type OperationBodyUnfreezeRequest struct {
 	OperationBodyImpl
 	Target string        `json:"target"`
 	Amount common.Amount `json:"amount"`
 }
 
-func NewOperationBodyPayment(target string, amount common.Amount) OperationBodyPayment {
-	return OperationBodyPayment{
+func NewOperationBodyUnfreezeRequest(target string, amount common.Amount) OperationBodyUnfreezeRequest {
+	return OperationBodyUnfreezeRequest{
 		Target: target,
 		Amount: amount,
 	}
 }
 
-func (o OperationBodyPayment) Serialize() (encoded []byte, err error) {
+func (o OperationBodyUnfreezeRequest) Serialize() (encoded []byte, err error) {
 	encoded, err = json.Marshal(o)
 	return
 }
 
-// Implement transaction/operation : OperationBody.IsWellFormed
-func (o OperationBodyPayment) IsWellFormed([]byte) (err error) {
+func (o OperationBodyUnfreezeRequest) IsWellFormed([]byte) (err error) {
 	if _, err = keypair.Parse(o.Target); err != nil {
 		return
 	}
@@ -37,14 +36,13 @@ func (o OperationBodyPayment) IsWellFormed([]byte) (err error) {
 		err = fmt.Errorf("invalid `Amount`")
 		return
 	}
-
 	return
 }
 
-func (o OperationBodyPayment) TargetAddress() string {
+func (o OperationBodyUnfreezeRequest) TargetAddress() string {
 	return o.Target
 }
 
-func (o OperationBodyPayment) GetAmount() common.Amount {
+func (o OperationBodyUnfreezeRequest) GetAmount() common.Amount {
 	return o.Amount
 }

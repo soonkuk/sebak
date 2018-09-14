@@ -2,7 +2,6 @@ package consensus
 
 import (
 	"boscoin.io/sebak/lib/ballot"
-	"boscoin.io/sebak/lib/common"
 )
 
 type RoundVoteResult map[ /* Node.Address() */ string]ballot.VotingHole
@@ -64,7 +63,7 @@ func (rv *RoundVote) GetResult(state ballot.State) (result RoundVoteResult) {
 	return result
 }
 
-func (rv *RoundVote) CanGetVotingResult(policy common.VotingThresholdPolicy, state common.BallotState) (RoundVoteResult, common.VotingHole, bool) {
+func (rv *RoundVote) CanGetVotingResult(policy ballot.VotingThresholdPolicy, state ballot.State) (RoundVoteResult, ballot.VotingHole, bool) {
 	threshold := policy.Threshold(state)
 	if threshold < 1 {
 		return RoundVoteResult{}, ballot.VotingNOTYET, false

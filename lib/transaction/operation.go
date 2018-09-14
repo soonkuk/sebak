@@ -13,8 +13,13 @@ import (
 type OperationType string
 
 const (
-	OperationCreateAccount OperationType = "create-account"
-	OperationPayment                     = "payment"
+	OperationCreateAccount     OperationType = "create-account"
+	OperationPayment                         = "payment"
+	OperationVotingResult                    = "voting-result"
+	OperationProposal                        = "proposal"
+	OperationMembership                      = "membership"
+	OperationUnfreezingRequest               = "unfreezing-request"
+	OperationUnfreezing                      = "unfreezing"
 )
 
 type Operation struct {
@@ -81,6 +86,20 @@ func NewOperationFromInterface(oj OperationFromJSON) (op Operation, err error) {
 			return
 		}
 		op.B = NewOperationBodyPayment(body["target"].(string), amount)
+	case OperationUnfreezingRequest:
+		var amount common.Amount
+		amount, err = common.AmountFromString(fmt.Sprintf("%v", body["amount"]))
+		if err != nil {
+			return
+		}
+		op.B = NewOperationBodyUnfreezeRequest(body["target"].(string), amount)
+	case OperationUnfreezing:
+		var amount common.Amount
+		amount, err = common.AmountFromString(fmt.Sprintf("%v", body["amount"]))
+		if err != nil {
+			return
+		}
+		op.B = NewOperationBodyUnfreeze(body["target"].(string), amount)
 	}
 
 	return
@@ -133,4 +152,21 @@ type OperationBody interface {
 	IsWellFormed(networkid []byte) error
 	TargetAddress() string
 	GetAmount() common.Amount
+}
+
+type OperationBodyImpl struct {
+}
+
+func (ob OperationBodyImpl) IsWellFormed(networkID []byte) (err error) {
+	err = nil
+	return
+}
+
+func (ob OperationBodyImpl) TargetAddress() string {
+	return "none"
+}
+
+func (ob OperationBodyImpl) GetAmount() (a common.Amount) {
+	a = 0
+	return
 }

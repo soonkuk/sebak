@@ -17,10 +17,8 @@ import (
 	"github.com/stellar/go/keypair"
 
 	cmdcommon "boscoin.io/sebak/cmd/sebak/common"
-
-	"strconv"
-
 	"boscoin.io/sebak/lib"
+	"boscoin.io/sebak/lib/common"
 	"boscoin.io/sebak/lib/consensus"
 	"boscoin.io/sebak/lib/network"
 	"boscoin.io/sebak/lib/node"

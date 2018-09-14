@@ -36,7 +36,6 @@ func NewTransactionFromJSON(b []byte) (tx Transaction, err error) {
 	if err = json.Unmarshal(b, &txt); err != nil {
 		return
 	}
-
 	var operations []Operation
 	for _, o := range txt.B.Operations {
 		var op Operation
