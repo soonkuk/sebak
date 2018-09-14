@@ -3,8 +3,6 @@ package runner
 import (
 	"encoding/json"
 
-	logging "github.com/inconshreveable/log15"
-
 	"boscoin.io/sebak/lib/block"
 	"boscoin.io/sebak/lib/common"
 	"boscoin.io/sebak/lib/consensus"
@@ -12,6 +10,7 @@ import (
 	"boscoin.io/sebak/lib/node"
 	"boscoin.io/sebak/lib/storage"
 	"boscoin.io/sebak/lib/transaction"
+	logging "github.com/inconshreveable/log15"
 )
 
 type CheckerStopCloseConsensus struct {
@@ -212,7 +211,6 @@ func BallotCheckResult(c common.Checker, args ...interface{}) (err error) {
 	result, votingHole, finished := checker.RoundVote.CanGetVotingResult(
 		checker.NodeRunner.Consensus().VotingThresholdPolicy,
 		checker.Ballot.State(),
-		checker.Log,
 	)
 
 	checker.Result = result
@@ -358,11 +356,10 @@ func ACCEPTBallotStore(c common.Checker, args ...interface{}) (err error) {
 	willStore := checker.FinishedVotingHole == common.VotingYES
 	if checker.FinishedVotingHole == common.VotingYES {
 		var theBlock block.Block
-		theBlock, err = finishBallot(
+		theBlock, err = block.FinishBallot(
 			checker.NodeRunner.Storage(),
 			checker.Ballot,
 			checker.NodeRunner.Consensus().TransactionPool,
-			checker.Log,
 		)
 		if err != nil {
 			return
