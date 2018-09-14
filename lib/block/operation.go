@@ -31,7 +31,7 @@ type BlockOperation struct {
 	// transaction will be used only for `Save` time.
 	transaction transaction.Transaction
 	isSaved     bool
-	blockHeight uint64
+	BlockHeight uint64
 }
 
 func NewBlockOperationKey(op transaction.Operation, tx transaction.Transaction) string {
@@ -50,7 +50,7 @@ func NewBlockOperationFromOperation(op transaction.Operation, tx transaction.Tra
 
 		transaction: tx,
 
-		blockHeight: blockHeight,
+		BlockHeight: blockHeight,
 	}
 }
 
@@ -124,7 +124,7 @@ func (bo BlockOperation) NewBlockOperationTxHashKey() string {
 	return fmt.Sprintf(
 		"%s%s%s%s",
 		GetBlockOperationKeyPrefixTxHash(bo.TxHash),
-		common.EncodeUint64ToByteSlice(bo.blockHeight),
+		common.EncodeUint64ToByteSlice(bo.BlockHeight),
 		common.EncodeUint64ToByteSlice(bo.transaction.B.SequenceID),
 		common.GetUniqueIDFromUUID(),
 	)
@@ -134,7 +134,7 @@ func (bo BlockOperation) NewBlockOperationSourceKey() string {
 	return fmt.Sprintf(
 		"%s%s%s%s",
 		GetBlockOperationKeyPrefixSource(bo.Source),
-		common.EncodeUint64ToByteSlice(bo.blockHeight),
+		common.EncodeUint64ToByteSlice(bo.BlockHeight),
 		common.EncodeUint64ToByteSlice(bo.transaction.B.SequenceID),
 		common.GetUniqueIDFromUUID(),
 	)
@@ -144,7 +144,7 @@ func (bo BlockOperation) NewBlockOperationTargetKey() string {
 	return fmt.Sprintf(
 		"%s%s%s%s",
 		GetBlockOperationKeyPrefixTarget(bo.Target),
-		common.EncodeUint64ToByteSlice(bo.blockHeight),
+		common.EncodeUint64ToByteSlice(bo.BlockHeight),
 		common.EncodeUint64ToByteSlice(bo.transaction.B.SequenceID),
 		common.GetUniqueIDFromUUID(),
 	)
@@ -156,7 +156,7 @@ func (bo BlockOperation) NewBlockOperationPeersKey() string {
 	return fmt.Sprintf(
 		"%s%s%s%s",
 		GetBlockOperationKeyPrefixPeers(addresses[0], addresses[1]),
-		common.EncodeUint64ToByteSlice(bo.blockHeight),
+		common.EncodeUint64ToByteSlice(bo.BlockHeight),
 		common.EncodeUint64ToByteSlice(bo.transaction.B.SequenceID),
 		common.GetUniqueIDFromUUID(),
 	)

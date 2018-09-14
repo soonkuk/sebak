@@ -13,8 +13,13 @@ import (
 type OperationType string
 
 const (
-	OperationCreateAccount OperationType = "create-account"
-	OperationPayment                     = "payment"
+	OperationCreateAccount     OperationType = "create-account"
+	OperationPayment                         = "payment"
+	OperationVotingResult                    = "voting-result"
+	OperationProposal                        = "proposal"
+	OperationMembership                      = "membership"
+	OperationUnfreezingRequest               = "unfreezing-request"
+	OperationUnfreezing                      = "unfreezing"
 )
 
 type Operation struct {
@@ -62,33 +67,42 @@ func NewOperationFromBytes(b []byte) (op Operation, err error) {
 	return
 }
 
-func NewOperationFromInterface(oj OperationFromJSON) (Operation, error) {
-	var op Operation
+func NewOperationFromInterface(oj OperationFromJSON) (op Operation, err error) {
 	op.H = oj.H
 
 	body := oj.B.(map[string]interface{})
 	switch op.H.Type {
 	case OperationCreateAccount:
-		if amount, err := common.AmountFromString(fmt.Sprintf("%v", body["amount"])); err != nil {
-			return Operation{}, err
-		} else if target, is_target := body["target"].(string); !is_target {
-			return Operation{}, errors.ErrorInvalidOperation
-		} else {
-			op.B = NewOperationBodyCreateAccount(body["target"].(string), amount, body["linked"].(string))
+		var amount common.Amount
+		amount, err = common.AmountFromString(fmt.Sprintf("%v", body["amount"]))
+		if err != nil {
+			return
 		}
+		op.B = NewOperationBodyCreateAccount(body["target"].(string), amount, body["linked"].(string))
 	case OperationPayment:
-		if amount, err := common.AmountFromString(fmt.Sprintf("%v", body["amount"])); err != nil {
-			return Operation{}, err
-		} else if target, is_target := body["target"].(string); !is_target {
-			return Operation{}, errors.ErrorInvalidOperation
-		} else {
-			op.B = NewOperationBodyPayment(target, amount)
+		var amount common.Amount
+		amount, err = common.AmountFromString(fmt.Sprintf("%v", body["amount"]))
+		if err != nil {
+			return
 		}
-	default:
-		return Operation{}, errors.ErrorInvalidOperation
+		op.B = NewOperationBodyPayment(body["target"].(string), amount)
+	case OperationUnfreezingRequest:
+		var amount common.Amount
+		amount, err = common.AmountFromString(fmt.Sprintf("%v", body["amount"]))
+		if err != nil {
+			return
+		}
+		op.B = NewOperationBodyUnfreezeRequest(body["target"].(string), amount)
+	case OperationUnfreezing:
+		var amount common.Amount
+		amount, err = common.AmountFromString(fmt.Sprintf("%v", body["amount"]))
+		if err != nil {
+			return
+		}
+		op.B = NewOperationBodyUnfreeze(body["target"].(string), amount)
 	}
 
-	return op, nil
+	return
 }
 
 func NewOperation(t OperationType, body OperationBody) (op Operation, err error) {
@@ -138,4 +152,21 @@ type OperationBody interface {
 	IsWellFormed(networkid []byte) error
 	TargetAddress() string
 	GetAmount() common.Amount
+}
+
+type OperationBodyImpl struct {
+}
+
+func (ob OperationBodyImpl) IsWellFormed(networkID []byte) (err error) {
+	err = nil
+	return
+}
+
+func (ob OperationBodyImpl) TargetAddress() string {
+	return "none"
+}
+
+func (ob OperationBodyImpl) GetAmount() (a common.Amount) {
+	a = 0
+	return
 }

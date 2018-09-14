@@ -36,7 +36,6 @@ func NewTransactionFromJSON(b []byte) (tx Transaction, err error) {
 	if err = json.Unmarshal(b, &txt); err != nil {
 		return
 	}
-
 	var operations []Operation
 	for _, o := range txt.B.Operations {
 		var op Operation
@@ -169,6 +168,14 @@ func (tx *Transaction) Sign(kp keypair.KP, networkID []byte) {
 	tx.H.Signature = base58.Encode(signature)
 
 	return
+}
+
+// NextSourceSequenceID returns the next sequenceID from the current Transaction.
+//
+// The sequenceID is simply the hash of the last paid transaction.
+// It is present to prevent replay attacks.
+func (tx Transaction) NextSequenceID() uint64 {
+	return tx.B.SequenceID + 1
 }
 
 type TransactionHeader struct {

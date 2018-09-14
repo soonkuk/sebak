@@ -11,14 +11,7 @@ import (
 	"boscoin.io/sebak/lib/error"
 	"boscoin.io/sebak/lib/network/api/resource"
 	"boscoin.io/sebak/lib/network/httputils"
-<<<<<<< HEAD
-<<<<<<< HEAD
 	"boscoin.io/sebak/lib/storage"
-=======
->>>>>>> move ballot_state.go and voting.go to ballot package
-=======
-	"boscoin.io/sebak/lib/storage"
->>>>>>> API: Get Block data for Nodes (#408)
 )
 
 func (api NetworkHandlerAPI) GetTransactionsHandler(w http.ResponseWriter, r *http.Request) {

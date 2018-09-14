@@ -21,13 +21,15 @@ import (
 )
 
 var (
-	flagNetworkID     string = common.GetENVValue("SEBAK_NETWORK_ID", "")
-	PaymentCmd        *cobra.Command
-	flagEndpoint      string
-	flagCreateAccount bool
-	flagDry           bool
-	flagFreeze        bool
-	flagVerbose       bool
+	flagNetworkID         string = common.GetENVValue("SEBAK_NETWORK_ID", "")
+	PaymentCmd            *cobra.Command
+	flagEndpoint          string
+	flagCreateAccount     bool
+	flagDry               bool
+	flagFreeze            bool
+	flagUnfreezingRequest bool
+	flagUnfreezing        bool
+	flagVerbose           bool
 )
 
 func init() {
@@ -118,6 +120,10 @@ func init() {
 				tx = makeTransactionCreateAccount(sender, receiver, amount, senderAccount.SequenceID, sender.Address())
 			} else if flagCreateAccount {
 				tx = makeTransactionCreateAccount(sender, receiver, amount, senderAccount.SequenceID, "")
+			} else if flagUnfreezingRequest {
+				tx = makeTransactionUnfreezingRequest(sender, receiver, amount, senderAccount.SequenceID)
+			} else if flagUnfreezing {
+				tx = makeTransactionUnfreezing(sender, receiver, amount, senderAccount.SequenceID)
 			} else {
 				tx = makeTransactionPayment(sender, receiver, amount, senderAccount.SequenceID)
 			}
@@ -150,6 +156,8 @@ func init() {
 	PaymentCmd.Flags().BoolVar(&flagCreateAccount, "create", flagCreateAccount, "Whether or not the account should be created")
 	PaymentCmd.Flags().BoolVar(&flagFreeze, "freeze", flagFreeze, "When present, the payment is a frozen account creation. Imply --create.")
 	PaymentCmd.Flags().BoolVar(&flagDry, "dry-run", flagDry, "Print the transaction instead of sending it")
+	PaymentCmd.Flags().BoolVar(&flagUnfreezing, "unfreeze", flagUnfreezing, "unfreeze the frozen account")
+	PaymentCmd.Flags().BoolVar(&flagUnfreezingRequest, "unfreeze-request", flagUnfreezingRequest, "Request unfreezing for frozen account")
 	PaymentCmd.Flags().BoolVar(&flagVerbose, "verbose", flagVerbose, "Print extra data (transaction sent, before/after balance...)")
 }
 
@@ -219,6 +227,94 @@ func makeTransactionPayment(kpSource keypair.KP, kpDest keypair.KP, amount commo
 	op := transaction.Operation{
 		H: transaction.OperationHeader{
 			Type: transaction.OperationPayment,
+		},
+		B: opb,
+	}
+
+	txBody := transaction.TransactionBody{
+		Source:     kpSource.Address(),
+		Fee:        common.Amount(common.BaseFee),
+		SequenceID: seqid,
+		Operations: []transaction.Operation{op},
+	}
+
+	tx := transaction.Transaction{
+		T: "transaction",
+		H: transaction.TransactionHeader{
+			Created: common.NowISO8601(),
+			Hash:    txBody.MakeHashString(),
+		},
+		B: txBody,
+	}
+
+	return tx
+}
+
+//
+/// Make a full transaction, with a single unfreezing request operation in it
+///
+/// TODO:
+///   Move to lib (it was 'borrowed' from test code)
+///
+/// Params:
+///   kpSource = Sender's keypair.Full seed/address
+///   kpDest   = Receiver's keypair.FromAddress address
+///   amount   = Amount to send as initial value
+///   seqid    = SequenceID of the last transaction
+///
+/// Returns:
+///  `sebak.Transaction` = The generated `Transaction` to do a unfreezing request
+///
+func makeTransactionUnfreezingRequest(kpSource keypair.KP, kpDest keypair.KP, amount common.Amount, seqid uint64) transaction.Transaction {
+	opb := transaction.NewOperationBodyUnfreezeRequest(kpDest.Address(), amount)
+
+	op := transaction.Operation{
+		H: transaction.OperationHeader{
+			Type: transaction.OperationUnfreezingRequest,
+		},
+		B: opb,
+	}
+
+	txBody := transaction.TransactionBody{
+		Source:     kpSource.Address(),
+		Fee:        common.Amount(common.BaseFee),
+		SequenceID: seqid,
+		Operations: []transaction.Operation{op},
+	}
+
+	tx := transaction.Transaction{
+		T: "transaction",
+		H: transaction.TransactionHeader{
+			Created: common.NowISO8601(),
+			Hash:    txBody.MakeHashString(),
+		},
+		B: txBody,
+	}
+
+	return tx
+}
+
+//
+/// Make a full transaction, with a single unfreezing operation in it
+///
+/// TODO:
+///   Move to lib (it was 'borrowed' from test code)
+///
+/// Params:
+///   kpSource = Sender's keypair.Full seed/address
+///   kpDest   = Receiver's keypair.FromAddress address
+///   amount   = Amount to send as initial value
+///   seqid    = SequenceID of the last transaction
+///
+/// Returns:
+///  `sebak.Transaction` = The generated `Transaction` to do a unfreezing
+///
+func makeTransactionUnfreezing(kpSource keypair.KP, kpDest keypair.KP, amount common.Amount, seqid uint64) transaction.Transaction {
+	opb := transaction.NewOperationBodyUnfreeze(kpDest.Address(), amount)
+
+	op := transaction.Operation{
+		H: transaction.OperationHeader{
+			Type: transaction.OperationUnfreezing,
 		},
 		B: opb,
 	}

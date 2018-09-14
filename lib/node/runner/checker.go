@@ -2,6 +2,7 @@ package runner
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"boscoin.io/sebak/lib/ballot"
 	"boscoin.io/sebak/lib/block"
@@ -166,10 +167,7 @@ func BallotCheckResult(c common.Checker, args ...interface{}) (err error) {
 		return
 	}
 
-	result, votingHole, finished := checker.RoundVote.CanGetVotingResult(
-		checker.NodeRunner.Consensus().VotingThresholdPolicy,
-		checker.Ballot.State(),
-	)
+	result, votingHole, finished := checker.NodeRunner.Consensus().CanGetVotingResult(checker.Ballot)
 
 	checker.Result = result
 	checker.VotingFinished = finished
@@ -286,6 +284,7 @@ func TransitStateToSIGN(c common.Checker, args ...interface{}) (err error) {
 // ballot.
 func ACCEPTBallotBroadcast(c common.Checker, args ...interface{}) (err error) {
 	checker := c.(*BallotChecker)
+
 	if !checker.VotingFinished {
 		return
 	}
@@ -310,6 +309,7 @@ func ACCEPTBallotBroadcast(c common.Checker, args ...interface{}) (err error) {
 // TransitStateToACCEPT changes ISAACState to ACCEPT
 func TransitStateToACCEPT(c common.Checker, args ...interface{}) (err error) {
 	checker := c.(*BallotChecker)
+
 	if !checker.VotingFinished {
 		return
 	}
@@ -328,7 +328,7 @@ func FinishedBallotStore(c common.Checker, args ...interface{}) (err error) {
 	}
 	if checker.FinishedVotingHole == ballot.VotingYES {
 		var theBlock block.Block
-		theBlock, err = block.FinishBallot(
+		theBlock, err = finishBallot(
 			checker.NodeRunner.Storage(),
 			checker.Ballot,
 			checker.NodeRunner.Consensus().TransactionPool,
@@ -395,23 +395,6 @@ func finishBallot(st *storage.LevelDBBackend, b ballot.Ballot, transactionPool *
 			}
 		}
 
-		var baSource *block.BlockAccount
-		if baSource, err = block.GetBlockAccount(ts, tx.B.Source); err != nil {
-			err = errors.ErrorBlockAccountDoesNotExists
-			ts.Discard()
-			return
-		}
-
-		if err = baSource.Withdraw(tx.TotalAmount(true)); err != nil {
-			ts.Discard()
-			return
-		}
-
-		if err = baSource.Save(ts); err != nil {
-			ts.Discard()
-			return
-		}
-
 	}
 
 	if err = ts.Commit(); err != nil {
@@ -428,6 +411,10 @@ func finishOperation(st *storage.LevelDBBackend, tx transaction.Transaction, op 
 		return finishOperationCreateAccount(st, tx, op)
 	case transaction.OperationPayment:
 		return finishOperationPayment(st, tx, op)
+	case transaction.OperationUnfreezingRequest:
+		return finishOperationUnfreezeRequest(st, tx, op)
+	case transaction.OperationUnfreezing:
+		return finishOperationUnfreeze(st, tx, op)
 	default:
 		err = errors.ErrorUnknownOperationType
 		return
@@ -448,7 +435,7 @@ func finishOperationCreateAccount(st *storage.LevelDBBackend, tx transaction.Tra
 	}
 
 	body := op.B.(transaction.OperationBodyCreateAccount)
-	baTarget = block.NewBlockAccount(
+	baTarget = block.NewBlockAccountLinked(
 		body.TargetAddress(),
 		body.GetAmount(),
 		body.Linked,
@@ -458,6 +445,14 @@ func finishOperationCreateAccount(st *storage.LevelDBBackend, tx transaction.Tra
 	}
 
 	log.Debug("new account created", "source", baSource, "target", baTarget)
+
+	if err = baSource.Withdraw(tx.TotalAmount(true), tx.NextSequenceID()); err != nil {
+		return
+	}
+
+	if err = baSource.Save(st); err != nil {
+		return
+	}
 
 	return
 }
@@ -482,6 +477,78 @@ func finishOperationPayment(st *storage.LevelDBBackend, tx transaction.Transacti
 	}
 
 	log.Debug("payment done", "source", baSource, "target", baTarget, "amount", op.B.GetAmount())
+
+	if err = baSource.Withdraw(tx.TotalAmount(true), tx.NextSequenceID()); err != nil {
+		return
+	}
+
+	if err = baSource.Save(st); err != nil {
+		return
+	}
+
+	return
+}
+
+func finishOperationUnfreezeRequest(st *storage.LevelDBBackend, tx transaction.Transaction, op transaction.Operation) (err error) {
+	var baSource, baTarget *block.BlockAccount
+	if baSource, err = block.GetBlockAccount(st, tx.B.Source); err != nil {
+		err = errors.ErrorBlockAccountDoesNotExists
+		return
+	}
+	if baTarget, err = block.GetBlockAccount(st, op.B.TargetAddress()); err != nil {
+		err = errors.ErrorBlockAccountDoesNotExists
+		return
+	}
+	if baSource.Balance != op.B.GetAmount().MustAdd(common.BaseFee) {
+		return
+	}
+
+	log.Debug("UnfreezeRequest done", "source", baSource, "target", baTarget, "amount", op.B.GetAmount())
+	var a common.Amount
+	a = common.BaseFee
+
+	fmt.Println(a)
+	if err = baSource.Withdraw(a, tx.NextSequenceID()); err != nil {
+		return
+	}
+
+	if err = baSource.Save(st); err != nil {
+		return
+	}
+
+	return
+}
+
+func finishOperationUnfreeze(st *storage.LevelDBBackend, tx transaction.Transaction, op transaction.Operation) (err error) {
+	var baSource, baTarget *block.BlockAccount
+	if baSource, err = block.GetBlockAccount(st, tx.B.Source); err != nil {
+		err = errors.ErrorBlockAccountDoesNotExists
+		return
+	}
+	if baTarget, err = block.GetBlockAccount(st, op.B.TargetAddress()); err != nil {
+		err = errors.ErrorBlockAccountDoesNotExists
+		return
+	}
+	if baSource.Balance != op.B.GetAmount().MustAdd(common.BaseFee) {
+		return
+	}
+
+	if err = baTarget.Deposit(op.B.GetAmount()); err != nil {
+		return
+	}
+	if err = baTarget.Save(st); err != nil {
+		return
+	}
+
+	log.Debug("Unfreeze done", "source", baSource, "target", baTarget, "amount", op.B.GetAmount())
+
+	if err = baSource.Withdraw(tx.TotalAmount(true), tx.NextSequenceID()); err != nil {
+		return
+	}
+
+	if err = baSource.Save(st); err != nil {
+		return
+	}
 
 	return
 }

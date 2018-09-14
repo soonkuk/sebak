@@ -133,3 +133,93 @@ func MakeTransactionCreateAccount(kpSource *keypair.Full, target string, amount 
 
 	return
 }
+
+func MakeTransactionCreateFrozenAccount(kpSource *keypair.Full, target string, amount common.Amount, linkedAccount string) (tx Transaction) {
+	opb := NewOperationBodyCreateAccount(target, common.Amount(amount), linkedAccount)
+
+	op := Operation{
+		H: OperationHeader{
+			Type: OperationCreateAccount,
+		},
+		B: opb,
+	}
+
+	txBody := TransactionBody{
+		Source:     kpSource.Address(),
+		Fee:        common.BaseFee,
+		SequenceID: rand.Uint64(),
+		Operations: []Operation{op},
+	}
+
+	tx = Transaction{
+		T: "transaction",
+		H: TransactionHeader{
+			Created: common.NowISO8601(),
+			Hash:    txBody.MakeHashString(),
+		},
+		B: txBody,
+	}
+	tx.Sign(kpSource, networkID)
+
+	return
+}
+
+func MakeTransactionUnfreezingRequest(kpSource *keypair.Full, target string, amount common.Amount) (tx Transaction) {
+	opb := NewOperationBodyUnfreezeRequest(target, common.Amount(amount))
+	op := Operation{
+		H: OperationHeader{
+			Type: OperationUnfreezingRequest,
+		},
+		B: opb,
+	}
+
+	txBody := TransactionBody{
+		Source:     kpSource.Address(),
+		Fee:        common.BaseFee,
+		SequenceID: rand.Uint64(),
+		Operations: []Operation{op},
+	}
+
+	tx = Transaction{
+		T: "transaction",
+		H: TransactionHeader{
+			Created: common.NowISO8601(),
+			Hash:    txBody.MakeHashString(),
+		},
+		B: txBody,
+	}
+
+	tx.Sign(kpSource, networkID)
+
+	return
+}
+
+func MakeTransactionUnfreezing(kpSource *keypair.Full, target string, amount common.Amount) (tx Transaction) {
+	opb := NewOperationBodyUnfreeze(target, common.Amount(amount))
+	op := Operation{
+		H: OperationHeader{
+			Type: OperationUnfreezing,
+		},
+		B: opb,
+	}
+
+	txBody := TransactionBody{
+		Source:     kpSource.Address(),
+		Fee:        common.BaseFee,
+		SequenceID: rand.Uint64(),
+		Operations: []Operation{op},
+	}
+
+	tx = Transaction{
+		T: "transaction",
+		H: TransactionHeader{
+			Created: common.NowISO8601(),
+			Hash:    txBody.MakeHashString(),
+		},
+		B: txBody,
+	}
+
+	tx.Sign(kpSource, networkID)
+
+	return
+}

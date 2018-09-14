@@ -38,7 +38,6 @@ type MessageChecker struct {
 // incoming `common.NetworkMessage`.
 func TransactionUnmarshal(c common.Checker, args ...interface{}) (err error) {
 	checker := c.(*MessageChecker)
-
 	var tx transaction.Transaction
 	if tx, err = transaction.NewTransactionFromJSON(checker.Message.Data); err != nil {
 		return
@@ -108,7 +107,7 @@ func MessageHasSameSource(c common.Checker, args ...interface{}) (err error) {
 func MessageValidate(c common.Checker, args ...interface{}) (err error) {
 	checker := c.(*MessageChecker)
 
-	if err = ValidateTx(checker.NodeRunner.Storage(), checker.Transaction); err != nil {
+	if err = ValidateTx(checker.NodeRunner.storage, checker.Transaction); err != nil {
 		return
 	}
 
