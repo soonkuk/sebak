@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"boscoin.io/sebak/lib/ballot"
+	"github.com/prometheus/common/log"
 )
 
 type RoundVoteResult map[ /* Node.Address() */ string]ballot.VotingHole
