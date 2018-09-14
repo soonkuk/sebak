@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcutil/base58"
-	logging "github.com/inconshreveable/log15"
 
 	"boscoin.io/sebak/lib/ballot"
 	"boscoin.io/sebak/lib/common"
@@ -41,7 +40,7 @@ func (bck Block) String() string {
 	return string(encoded)
 }
 
-func MakeGenesisBlock(st *storage.LevelDBBackend, account BlockAccount, log logging.Logger) Block {
+func MakeGenesisBlock(st *storage.LevelDBBackend, account BlockAccount) Block {
 	proposer := "" // null proposer
 	round := round.Round{
 		Number:      0,
@@ -57,14 +56,13 @@ func MakeGenesisBlock(st *storage.LevelDBBackend, account BlockAccount, log logg
 		round,
 		transactions,
 		confirmed,
-		log,
 	)
 	b.Save(st)
 
 	return b
 }
 
-func NewBlock(proposer string, round round.Round, transactions []string, confirmed string, log logging.Logger) Block {
+func NewBlock(proposer string, round round.Round, transactions []string, confirmed string) Block {
 	b := &Block{
 		Header:       *NewBlockHeader(round, uint64(len(transactions)), getTransactionRoot(transactions)),
 		Transactions: transactions,
@@ -73,8 +71,9 @@ func NewBlock(proposer string, round round.Round, transactions []string, confirm
 		Confirmed:    confirmed,
 	}
 
-	b.Hash = base58.Encode(common.MustMakeObjectHash(b))
 	log.Debug("NewBlock created", "PrevTotalTxs", round.TotalTxs, "txs", len(transactions), "TotalTxs", b.Header.TotalTxs)
+
+	b.Hash = base58.Encode(common.MustMakeObjectHash(b))
 
 	return *b
 }

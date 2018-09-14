@@ -323,11 +323,10 @@ func FinishedBallotStore(c common.Checker, args ...interface{}) (err error) {
 	}
 	if checker.FinishedVotingHole == ballot.VotingYES {
 		var theBlock block.Block
-		theBlock, err = finishBallot(
+		theBlock, err = block.FinishBallot(
 			checker.NodeRunner.Storage(),
 			checker.Ballot,
 			checker.NodeRunner.Consensus().TransactionPool,
-			checker.Log,
 		)
 		if err != nil {
 			return
