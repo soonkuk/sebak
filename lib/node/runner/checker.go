@@ -166,7 +166,11 @@ func BallotCheckResult(c common.Checker, args ...interface{}) (err error) {
 		return
 	}
 
-	result, votingHole, finished := checker.NodeRunner.Consensus().CanGetVotingResult(checker.Ballot)
+	result, votingHole, finished := checker.RoundVote.CanGetVotingResult(
+		checker.NodeRunner.Consensus().VotingThresholdPolicy,
+		checker.Ballot.State(),
+		checker.Log,
+	)
 
 	checker.Result = result
 	checker.VotingFinished = finished
@@ -329,6 +333,7 @@ func FinishedBallotStore(c common.Checker, args ...interface{}) (err error) {
 			checker.NodeRunner.Storage(),
 			checker.Ballot,
 			checker.NodeRunner.Consensus().TransactionPool,
+			checker.Log,
 		)
 		if err != nil {
 			return

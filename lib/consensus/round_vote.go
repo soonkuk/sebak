@@ -1,14 +1,9 @@
 package consensus
 
 import (
+	logging "github.com/inconshreveable/log15"
+
 	"boscoin.io/sebak/lib/ballot"
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-	"boscoin.io/sebak/lib/block"
->>>>>>> move ballot_state.go and voting.go to ballot package
-=======
->>>>>>> move ballot.go and ballot_test.go to ballot and refactoring(Finish functions into checker)
 )
 
 type RoundVoteResult map[ /* Node.Address() */ string]ballot.VotingHole
@@ -70,7 +65,7 @@ func (rv *RoundVote) GetResult(state ballot.State) (result RoundVoteResult) {
 	return result
 }
 
-func (rv *RoundVote) CanGetVotingResult(policy ballot.VotingThresholdPolicy, state ballot.State) (RoundVoteResult, ballot.VotingHole, bool) {
+func (rv *RoundVote) CanGetVotingResult(policy common.VotingThresholdPolicy, state common.BallotState, log logging.Logger) (RoundVoteResult, common.VotingHole, bool) {
 	threshold := policy.Threshold(state)
 	if threshold < 1 {
 		return RoundVoteResult{}, ballot.VotingNOTYET, false
