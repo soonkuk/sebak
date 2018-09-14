@@ -94,7 +94,7 @@ func NewNodeRunner(
 	localNode *node.LocalNode,
 	policy ballot.VotingThresholdPolicy,
 	n network.Network,
-	c *consensus.ISAAC,
+	consensus *consensus.ISAAC,
 	storage *storage.LevelDBBackend,
 	conf *consensus.ISAACConfiguration,
 ) (nr *NodeRunner, err error) {
@@ -103,7 +103,7 @@ func NewNodeRunner(
 		localNode: localNode,
 		policy:    policy,
 		network:   n,
-		consensus: c,
+		consensus: consensus,
 		storage:   storage,
 		log:       log.New(logging.Ctx{"node": localNode.Alias()}),
 	}
