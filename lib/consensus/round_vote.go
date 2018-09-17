@@ -2,6 +2,10 @@ package consensus
 
 import (
 	"boscoin.io/sebak/lib/ballot"
+<<<<<<< HEAD
+=======
+	"boscoin.io/sebak/lib/block"
+>>>>>>> move ballot_state.go and voting.go to ballot package
 )
 
 type RoundVoteResult map[ /* Node.Address() */ string]ballot.VotingHole

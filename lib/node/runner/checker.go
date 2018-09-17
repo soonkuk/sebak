@@ -42,7 +42,11 @@ type BallotChecker struct {
 	NetworkID          []byte
 	Message            common.NetworkMessage
 	IsNew              bool
+<<<<<<< HEAD
 	Ballot             ballot.Ballot
+=======
+	Ballot             block.Ballot
+>>>>>>> move ballot_state.go and voting.go to ballot package
 	VotingHole         ballot.VotingHole
 	Result             consensus.RoundVoteResult
 	VotingFinished     bool
