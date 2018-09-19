@@ -304,6 +304,7 @@ func ValidateOp(nr *NodeRunner, source *block.BlockAccount, tx transaction.Trans
 			err = errors.ErrorUnfreezingRequestNotRequested
 			return
 		}
+		// unfreezing period is originally 241920(=12*60*24*14), but here is set to 4 for the test.
 		if lastblock.Height-bo.BlockHeight <= uint64(4) {
 			err = errors.ErrorUnfreezingNotReachedExpiration
 			return
