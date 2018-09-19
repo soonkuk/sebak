@@ -2,7 +2,6 @@ package runner
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"boscoin.io/sebak/lib/ballot"
 	"boscoin.io/sebak/lib/block"
@@ -446,7 +445,7 @@ func finishOperationCreateAccount(st *storage.LevelDBBackend, tx transaction.Tra
 
 	log.Debug("new account created", "source", baSource, "target", baTarget)
 
-	if err = baSource.Withdraw(tx.TotalAmount(true), tx.NextSequenceID()); err != nil {
+	if err = baSource.Withdraw(tx.TotalAmount(true)); err != nil {
 		return
 	}
 
@@ -478,7 +477,7 @@ func finishOperationPayment(st *storage.LevelDBBackend, tx transaction.Transacti
 
 	log.Debug("payment done", "source", baSource, "target", baTarget, "amount", op.B.GetAmount())
 
-	if err = baSource.Withdraw(tx.TotalAmount(true), tx.NextSequenceID()); err != nil {
+	if err = baSource.Withdraw(tx.TotalAmount(true)); err != nil {
 		return
 	}
 
@@ -507,8 +506,7 @@ func finishOperationUnfreezeRequest(st *storage.LevelDBBackend, tx transaction.T
 	var a common.Amount
 	a = common.BaseFee
 
-	fmt.Println(a)
-	if err = baSource.Withdraw(a, tx.NextSequenceID()); err != nil {
+	if err = baSource.Withdraw(a); err != nil {
 		return
 	}
 
@@ -542,7 +540,7 @@ func finishOperationUnfreeze(st *storage.LevelDBBackend, tx transaction.Transact
 
 	log.Debug("Unfreeze done", "source", baSource, "target", baTarget, "amount", op.B.GetAmount())
 
-	if err = baSource.Withdraw(tx.TotalAmount(true), tx.NextSequenceID()); err != nil {
+	if err = baSource.Withdraw(tx.TotalAmount(true)); err != nil {
 		return
 	}
 
