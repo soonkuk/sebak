@@ -192,25 +192,28 @@ func ValidateOp(nr *NodeRunner, source *block.BlockAccount, tx transaction.Trans
 	st := nr.Storage()
 	switch op.H.Type {
 	case transaction.OperationCreateAccount:
-		var ok bool
+		/*var ok bool
 		var casted transaction.OperationBodyCreateAccount
 		if casted, ok = op.B.(transaction.OperationBodyCreateAccount); !ok {
 			err = errors.ErrorTypeOperationBodyNotMatched
 			return
 		}
+		*/
 		var exists bool
 		if exists, err = block.ExistsBlockAccount(st, op.B.(transaction.OperationBodyCreateAccount).Target); err == nil && exists {
 			err = errors.ErrorBlockAccountAlreadyExists
 			return
 		}
 		// If it's a frozen account we check that only whole units are frozen
-		if casted.Linked != "" && (casted.Amount%common.Unit) != 0 {
-			return errors.ErrorFrozenAccountCreationWholeUnit // FIXME
-		}
-		if casted.Linked != "" && casted.Linked != tx.Source() {
-			err = errors.ErrorFrozenAccountMustCreatedFromLinkedAccount
-			return
-		}
+		/*
+			if casted.Linked != "" && (casted.Amount%common.Unit) != 0 {
+				return errors.ErrorFrozenAccountCreationWholeUnit // FIXME
+			}
+			if casted.Linked != "" && casted.Linked != tx.Source() {
+				err = errors.ErrorFrozenAccountMustCreatedFromLinkedAccount
+				return
+			}
+		*/
 	case transaction.OperationPayment:
 		var ok bool
 		var casted transaction.OperationBodyPayment

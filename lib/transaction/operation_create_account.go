@@ -9,7 +9,7 @@ import (
 )
 
 type OperationBodyCreateAccount struct {
-	//OperationBodyImpl
+	OperationBodyImpl
 	Target string        `json:"target"`
 	Amount common.Amount `json:"amount"`
 	Linked string        `json:"linked"`

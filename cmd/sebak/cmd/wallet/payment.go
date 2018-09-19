@@ -56,11 +56,11 @@ func init() {
 			if amount, err = cmdcommon.ParseAmountFromString(args[1]); err != nil {
 				cmdcommon.PrintFlagsError(c, "<amount>", err)
 			}
-			if flagFreeze == true && (amount%common.Unit) != 0 {
+			/*if flagFreeze == true && (amount%common.Unit) != 0 {
 				cmdcommon.PrintFlagsError(c, "<amount>",
 					fmt.Errorf("Amount should be an exact multiple of %v when --freeze is provided", common.Unit))
 			}
-
+			*/
 			// Sender's secret seed
 			if sender, err = keypair.Parse(args[2]); err != nil {
 				cmdcommon.PrintFlagsError(c, "<sender secret seed>", err)
@@ -233,7 +233,7 @@ func makeTransactionPayment(kpSource keypair.KP, kpDest keypair.KP, amount commo
 
 	txBody := transaction.TransactionBody{
 		Source:     kpSource.Address(),
-		Fee:        common.Amount(common.BaseFee),
+		Fee:        common.BaseFee,
 		SequenceID: seqid,
 		Operations: []transaction.Operation{op},
 	}
@@ -277,7 +277,7 @@ func makeTransactionUnfreezingRequest(kpSource keypair.KP, kpDest keypair.KP, am
 
 	txBody := transaction.TransactionBody{
 		Source:     kpSource.Address(),
-		Fee:        common.Amount(common.BaseFee),
+		Fee:        common.BaseFee,
 		SequenceID: seqid,
 		Operations: []transaction.Operation{op},
 	}
@@ -321,7 +321,7 @@ func makeTransactionUnfreezing(kpSource keypair.KP, kpDest keypair.KP, amount co
 
 	txBody := transaction.TransactionBody{
 		Source:     kpSource.Address(),
-		Fee:        common.Amount(common.BaseFee),
+		Fee:        common.BaseFee,
 		SequenceID: seqid,
 		Operations: []transaction.Operation{op},
 	}
