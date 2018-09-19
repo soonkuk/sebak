@@ -73,33 +73,41 @@ func NewOperationFromInterface(oj OperationFromJSON) (op Operation, err error) {
 	body := oj.B.(map[string]interface{})
 	switch op.H.Type {
 	case OperationCreateAccount:
-		var amount common.Amount
-		amount, err = common.AmountFromString(fmt.Sprintf("%v", body["amount"]))
-		if err != nil {
-			return
+		if amount, err := common.AmountFromString(fmt.Sprintf("%v", body["amount"])); err != nil {
+			return Operation{}, err
+		} else if target, is_target := body["target"].(string); !is_target {
+			return Operation{}, errors.ErrorInvalidOperation
+		} else if body["linked"] == nil {
+			op.B = NewOperationBodyCreateAccount(target, amount, "")
+		} else if linked, is_linked := body["linked"].(string); !is_linked {
+			return Operation{}, errors.ErrorInvalidOperation
+		} else {
+			op.B = NewOperationBodyCreateAccount(target, amount, linked)
 		}
-		op.B = NewOperationBodyCreateAccount(body["target"].(string), amount, body["linked"].(string))
 	case OperationPayment:
-		var amount common.Amount
-		amount, err = common.AmountFromString(fmt.Sprintf("%v", body["amount"]))
-		if err != nil {
-			return
+		if amount, err := common.AmountFromString(fmt.Sprintf("%v", body["amount"])); err != nil {
+			return Operation{}, err
+		} else if target, is_target := body["target"].(string); !is_target {
+			return Operation{}, errors.ErrorInvalidOperation
+		} else {
+			op.B = NewOperationBodyPayment(target, amount)
 		}
-		op.B = NewOperationBodyPayment(body["target"].(string), amount)
 	case OperationUnfreezingRequest:
-		var amount common.Amount
-		amount, err = common.AmountFromString(fmt.Sprintf("%v", body["amount"]))
-		if err != nil {
-			return
+		if amount, err := common.AmountFromString(fmt.Sprintf("%v", body["amount"])); err != nil {
+			return Operation{}, err
+		} else if target, is_target := body["target"].(string); !is_target {
+			return Operation{}, errors.ErrorInvalidOperation
+		} else {
+			op.B = NewOperationBodyUnfreezeRequest(target, amount)
 		}
-		op.B = NewOperationBodyUnfreezeRequest(body["target"].(string), amount)
 	case OperationUnfreezing:
-		var amount common.Amount
-		amount, err = common.AmountFromString(fmt.Sprintf("%v", body["amount"]))
-		if err != nil {
-			return
+		if amount, err := common.AmountFromString(fmt.Sprintf("%v", body["amount"])); err != nil {
+			return Operation{}, err
+		} else if target, is_target := body["target"].(string); !is_target {
+			return Operation{}, errors.ErrorInvalidOperation
+		} else {
+			op.B = NewOperationBodyUnfreeze(target, amount)
 		}
-		op.B = NewOperationBodyUnfreeze(body["target"].(string), amount)
 	}
 
 	return
