@@ -6,7 +6,6 @@ import (
 	"boscoin.io/sebak/lib/common"
 	"boscoin.io/sebak/lib/error"
 	"boscoin.io/sebak/lib/node"
-	"boscoin.io/sebak/lib/storage"
 	"boscoin.io/sebak/lib/transaction"
 )
 
@@ -126,7 +125,7 @@ func BallotTransactionsSourceCheck(c common.Checker, args ...interface{}) (err e
 	for _, hash := range checker.ValidTransactions {
 		tx, _ := checker.NodeRunner.Consensus().TransactionPool.Get(hash)
 
-		if err = ValidateTx(checker.NodeRunner.Storage(), tx); err != nil {
+		if err = ValidateTx(checker.NodeRunner, tx); err != nil {
 			if !checker.CheckAll {
 				return
 			}
@@ -146,9 +145,10 @@ func BallotTransactionsSourceCheck(c common.Checker, args ...interface{}) (err e
 // * sequenceID is valid
 // * source has enough balance to pay
 // * and it's `Operations`
-func ValidateTx(st *storage.LevelDBBackend, tx transaction.Transaction) (err error) {
+func ValidateTx(nr *NodeRunner, tx transaction.Transaction) (err error) {
 	// check, source exists
 	var ba *block.BlockAccount
+	st := nr.Storage()
 	if ba, err = block.GetBlockAccount(st, tx.B.Source); err != nil {
 		err = errors.ErrorBlockAccountDoesNotExists
 		return
@@ -176,7 +176,7 @@ func ValidateTx(st *storage.LevelDBBackend, tx transaction.Transaction) (err err
 	}
 
 	for _, op := range tx.B.Operations {
-		if err = ValidateOp(st, op); err != nil {
+		if err = ValidateOp(nr, ba, tx, op); err != nil {
 			return
 		}
 	}
@@ -184,10 +184,13 @@ func ValidateTx(st *storage.LevelDBBackend, tx transaction.Transaction) (err err
 	return
 }
 
-func ValidateOp(st *storage.LevelDBBackend, op transaction.Operation) (err error) {
+func ValidateOp(nr *NodeRunner, source *block.BlockAccount, tx transaction.Transaction, op transaction.Operation) (err error) {
+	st := nr.Storage()
 	switch op.H.Type {
 	case transaction.OperationCreateAccount:
-		if _, ok := op.B.(transaction.OperationBodyCreateAccount); !ok {
+		var ok bool
+		var casted transaction.OperationBodyCreateAccount
+		if casted, ok = op.B.(transaction.OperationBodyCreateAccount); !ok {
 			err = errors.ErrorTypeOperationBodyNotMatched
 			return
 		}
@@ -196,16 +199,116 @@ func ValidateOp(st *storage.LevelDBBackend, op transaction.Operation) (err error
 			err = errors.ErrorBlockAccountAlreadyExists
 			return
 		}
+		// If it's a frozen account we check that only whole units are frozen
+		if casted.Linked != "" && (casted.Amount%common.Unit) != 0 {
+			return errors.ErrorFrozenAccountCreationWholeUnit // FIXME
+		}
+		if casted.Linked != "" && casted.Linked != tx.Source() {
+			err = errors.ErrorFrozenAccountMustCreatedFromLinkedAccount
+			return
+		}
 	case transaction.OperationPayment:
-		if _, ok := op.B.(transaction.OperationBodyPayment); !ok {
+		var ok bool
+		var casted transaction.OperationBodyPayment
+		if casted, ok = op.B.(transaction.OperationBodyPayment); !ok {
 			err = errors.ErrorTypeOperationBodyNotMatched
 			return
 		}
-		var exists bool
-		if exists, err = block.ExistsBlockAccount(st, op.B.(transaction.OperationBodyPayment).Target); err == nil && !exists {
+		var taccount *block.BlockAccount
+		if taccount, err = block.GetBlockAccount(st, casted.Target); err != nil {
 			err = errors.ErrorBlockAccountDoesNotExists
 			return
 		}
+		// If it's a frozen account, it cannot receive payment
+		if taccount.Linked != "" {
+			err = errors.ErrorFrozenAccountNoDeposit
+			return
+		}
+	case transaction.OperationUnfreezingRequest:
+		if _, ok := op.B.(transaction.OperationBodyUnfreezeRequest); !ok {
+			err = errors.ErrorTypeOperationBodyNotMatched
+			return
+		}
+		// Unfreezing should be done from a frozen account
+		if source.Linked == "" {
+			err = errors.ErrorUnfreezingFromInvalidAccount
+			return
+		}
+		// Target account must be existed
+		var exists bool
+		if exists, err = block.ExistsBlockAccount(st, op.B.TargetAddress()); err == nil && !exists {
+			err = errors.ErrorBlockAccountDoesNotExists
+			return
+		}
+		// Source account's linked address must be equal to target address
+		if source.Linked != op.B.TargetAddress() {
+			err = errors.ErrorUnfreezingToInvalidLinkedAccount
+		}
+		var ba *block.BlockAccount
+		ba, err = block.GetBlockAccount(st, tx.B.Source)
+		if err != nil {
+			return
+		}
+		// When unfreezing, everything must be withdrawn
+		if ba.Balance != op.B.GetAmount().MustAdd(common.BaseFee) {
+			err = errors.ErrorFrozenAccountMustWithdrawEverything
+			return
+		}
+	case transaction.OperationUnfreezing:
+		if _, ok := op.B.(transaction.OperationBodyUnfreeze); !ok {
+			err = errors.ErrorTypeOperationBodyNotMatched
+			return
+		}
+		// Unfreezing should be done from a frozen account
+		if source.Linked == "" {
+			err = errors.ErrorUnfreezingFromInvalidAccount
+			return
+		}
+		// Target account must be existed
+		var exists bool
+		if exists, err = block.ExistsBlockAccount(st, op.B.(transaction.OperationBodyUnfreeze).Target); err == nil && !exists {
+			err = errors.ErrorBlockAccountDoesNotExists
+			return
+		}
+		// Source account's linked address must be equal to target address
+		if source.Linked != op.B.TargetAddress() {
+			err = errors.ErrorUnfreezingToInvalidLinkedAccount
+		}
+		var ba *block.BlockAccount
+		ba, err = block.GetBlockAccount(st, tx.B.Source)
+		if err != nil {
+			return
+		}
+		// When unfreezing, everything must be withdrawn
+		if ba.Balance != op.B.GetAmount().MustAdd(common.BaseFee) {
+			err = errors.ErrorFrozenAccountMustWithdrawEverything
+			return
+		}
+		// Unfreezing must be done after X period from unfreezing request
+		var saved []block.BlockOperation
+		iterFunc, closeFunc := block.GetBlockOperationsBySource(st, source.Address, nil)
+
+		for {
+			t, hasNext, _ := iterFunc()
+			if !hasNext {
+				break
+			}
+			saved = append(saved, t)
+		}
+		closeFunc()
+
+		bo := saved[len(saved)-1]
+		lastblock := nr.consensus.LatestConfirmedBlock()
+
+		if bo.Type != transaction.OperationUnfreezingRequest {
+			err = errors.ErrorUnfreezingRequestNotRequested
+			return
+		}
+		if lastblock.Height-bo.BlockHeight <= uint64(4) {
+			err = errors.ErrorUnfreezingNotReachedExpiration
+			return
+		}
+
 	default:
 		err = errors.ErrorUnknownOperationType
 		return

@@ -107,7 +107,7 @@ func MessageHasSameSource(c common.Checker, args ...interface{}) (err error) {
 func MessageValidate(c common.Checker, args ...interface{}) (err error) {
 	checker := c.(*MessageChecker)
 
-	if err = ValidateTx(checker.NodeRunner.storage, checker.Transaction); err != nil {
+	if err = ValidateTx(checker.NodeRunner, checker.Transaction); err != nil {
 		return
 	}
 
