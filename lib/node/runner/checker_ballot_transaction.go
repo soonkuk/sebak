@@ -177,6 +177,10 @@ func ValidateTx(nr *NodeRunner, tx transaction.Transaction) (err error) {
 
 	for _, op := range tx.B.Operations {
 		if err = ValidateOp(nr, ba, tx, op); err != nil {
+
+			key := block.GetBlockTransactionHistoryKey(tx.H.Hash)
+			st.Remove(key)
+
 			return
 		}
 	}

@@ -3,6 +3,7 @@ package api
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"strings"
 	"sync"
@@ -36,8 +37,8 @@ func TestGetAccountHandler(t *testing.T) {
 		require.Nil(t, err)
 		recv := make(map[string]interface{})
 		json.Unmarshal(readByte, &recv)
-
-		require.Equal(t, ba.Address, recv["address"], "address is not same")
+		fmt.Println(recv)
+		require.Equal(t, ba.Address, recv["account_id"], "address is not same")
 	}
 }
 
@@ -84,7 +85,7 @@ func TestGetAccountHandlerStream(t *testing.T) {
 		require.Nil(t, err)
 		recv := make(map[string]interface{})
 		json.Unmarshal(line, &recv)
-		require.Equal(t, key, recv["address"], "address is not same")
+		require.Equal(t, key, recv["account_id"], "address is not same")
 	}
 	wg.Wait()
 }
