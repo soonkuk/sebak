@@ -275,5 +275,6 @@ func getSenderDetails(conn *network.HTTP2NetworkClient, sender keypair.KP) (bloc
 	}
 
 	err = json.Unmarshal(retBody, &ba)
+	fmt.Println(ba)
 	return ba, err
 }

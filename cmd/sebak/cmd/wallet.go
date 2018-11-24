@@ -24,4 +24,6 @@ func init() {
 	rootCmd.AddCommand(walletCmd)
 	walletCmd.AddCommand(wallet.PaymentCmd)
 	walletCmd.AddCommand(wallet.UnfreezeRequestCmd)
+	walletCmd.AddCommand(wallet.SignatureCmd)
+	walletCmd.AddCommand(wallet.RewardCmd)
 }
