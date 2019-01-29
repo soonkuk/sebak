@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/btcsuite/btcutil/base58"
 
@@ -108,6 +109,22 @@ func CheckVerifySignature(c common.Checker, args ...interface{}) (err error) {
 	)
 	if err != nil {
 		return
+	}
+	return
+}
+
+func CheckTimeBound(c common.Checker, args ...interface{}) (err error) {
+	checker := c.(*Checker)
+	now := time.Now().Unix()
+	var tx *TimeBound
+	tx = &checker.Transaction.B.TimeBound
+	if tx != nil {
+		lowerBound := checker.Transaction.B.timeBound.lowerBound
+		upperBound := checker.Transaction.B.timeBound.upperBound
+			if !(now.after(lowerBound.Unix()) && now.Before(upperBound)){
+			err = errors.OutOfTimeBound
+			return
+		}
 	}
 	return
 }

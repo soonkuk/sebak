@@ -23,9 +23,11 @@ type BlockAccount struct {
 	Balance    common.Amount `json:"balance"`
 	SequenceID uint64        `json:"sequence_id"`
 	// An address, or "" if the account isn't frozen
-	Linked   string      `json:"linked"`
-	CodeHash []byte      `json:"code_hash"`
-	RootHash common.Hash `json:"root_hash"`
+	Linked    string                  `json:"linked"`
+	CodeHash  []byte                  `json:"code_hash"`
+	Signers   map[SignerType][]Signer `json:"signers"`
+	Threshold []uint                  `json:"threshold"`
+	RootHash  common.Hash             `json:"root_hash"`
 }
 
 func NewBlockAccount(address string, balance common.Amount) *BlockAccount {
@@ -33,11 +35,40 @@ func NewBlockAccount(address string, balance common.Amount) *BlockAccount {
 }
 
 func NewBlockAccountLinked(address string, balance common.Amount, linked string) *BlockAccount {
+	signers := map[SignerType][]Signer{
+		TypePublicKey:          []Signer{},
+		TypeHashX:              []Signer{},
+		TypePreAuthTransaction: []Signer{},
+	}
 	return &BlockAccount{
 		Address:    address,
 		Balance:    balance,
 		SequenceID: 0,
 		Linked:     linked,
+		Signers:    signers,
+		Threshold:  []uint{1, 0, 0, 0},
+	}
+}
+
+func (b *BlockAccount) AddSigner(signer Signer) {
+	switch signer.KeyType {
+	case TypePublicKey:
+		b.Signers[TypePublicKey] = append(b.Signers[TypePublicKey], signer)
+	case TypeHashX:
+		b.Signers[TypeHashX] = append(b.Signers[TypeHashX], signer)
+	case TypePreAuthTransaction:
+		b.Signers[TypePreAuthTransaction] = append(b.Signers[TypePreAuthTransaction], signer)
+	}
+}
+
+func (b *BlockAccount) GetSigner() {
+	switch signer.KeyType {
+	case TypePublicKey:
+		b.Signers[TypePublicKey] = append(b.Signers[TypePublicKey], signer)
+	case TypeHashX:
+		b.Signers[TypeHashX] = append(b.Signers[TypeHashX], signer)
+	case TypePreAuthTransaction:
+		b.Signers[TypePreAuthTransaction] = append(b.Signers[TypePreAuthTransaction], signer)
 	}
 }
 
@@ -286,3 +317,25 @@ func GetBlockAccountSequenceIDByAddress(st *storage.LevelDBBackend, address stri
 			closeFunc()
 		})
 }
+
+type Signer struct {
+	KeyType SignerType
+	Key     string
+	Weight  uint
+}
+
+func NewSigner(keyType SignerType, key string, weight uint64) *BlockAccount {
+	return &Signer{
+		KeyType: keyType,
+		Key:     key,
+		Weight:  weight,
+	}
+}
+
+type SignerType uint
+
+const (
+	TypePublicKey SignerType = iota + 1
+	TypeHashX
+	TypePreAuthTransaction
+)

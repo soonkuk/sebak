@@ -85,7 +85,7 @@ func init() {
 
 			tx = makeTransactionUnfreezingRequest(sender, senderAccount.SequenceID)
 
-			tx.Sign(sender, []byte(flagNetworkID))
+			tx.Sign(sender.Address(), sender, []byte(flagNetworkID))
 
 			// Send request
 			var retbody []byte

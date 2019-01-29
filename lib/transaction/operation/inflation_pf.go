@@ -12,6 +12,7 @@ type InflationPF struct {
 	FundingAddress string        `json:"funding_address"`
 	Amount         common.Amount `json:"amount"`
 	VotingResult   string        `json:"voting-result"`
+	Threshold      OperationThreshold
 }
 
 func NewInflationPF(
@@ -23,6 +24,7 @@ func NewInflationPF(
 		FundingAddress: fundingAddress,
 		Amount:         amount,
 		VotingResult:   votingResult,
+		Threshold:      Medium,
 	}
 }
 
@@ -53,4 +55,12 @@ func (o InflationPF) GetAmount() common.Amount {
 
 func (o InflationPF) HasFee() bool {
 	return false
+}
+
+func (o InflationPF) HasThreshold() bool {
+	return true
+}
+
+func (o InflationPF) GetThreshold() OperationThreshold {
+	return o.Threshold
 }

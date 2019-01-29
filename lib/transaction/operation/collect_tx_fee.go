@@ -73,3 +73,7 @@ func (o CollectTxFee) GetAmount() common.Amount {
 func (o CollectTxFee) HasFee() bool {
 	return false
 }
+
+func (o CollectTxFee) HasThreshold() bool {
+	return false
+}

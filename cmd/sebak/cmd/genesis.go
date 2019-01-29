@@ -201,7 +201,7 @@ func checkExistingAccounts(st *storage.LevelDBBackend, networkID, genesisAddress
 	existingSignature := tx.H.Signature
 
 	kp := keypair.Master(networkID)
-	tx.Sign(kp, []byte(networkID))
+	tx.Sign(kp.Address(), kp, []byte(networkID))
 	if existingSignature != tx.H.Signature {
 		err = fmt.Errorf("the previous genesis block was created by different networkID")
 		return

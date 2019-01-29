@@ -13,6 +13,7 @@ type CongressVoting struct {
 	} `json:"voting"`
 	FundingAddress string        `json:"funding_address"`
 	Amount         common.Amount `json:"amount"`
+	Threshold      OperationThreshold
 }
 
 func NewCongressVoting(contract string, start, end uint64, amount common.Amount, fundingAddress string) CongressVoting {
@@ -28,6 +29,7 @@ func NewCongressVoting(contract string, start, end uint64, amount common.Amount,
 		},
 		Amount:         amount,
 		FundingAddress: fundingAddress,
+		Threshold:      Medium,
 	}
 }
 
@@ -44,4 +46,12 @@ func (o CongressVoting) IsWellFormed(common.Config) (err error) {
 
 func (o CongressVoting) HasFee() bool {
 	return true
+}
+
+func (o CongressVoting) HasThreshold() bool {
+	return true
+}
+
+func (o CongressVoting) GetThreshold() OperationThreshold {
+	return o.Threshold
 }

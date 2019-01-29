@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -33,15 +34,17 @@ var (
 
 func init() {
 	PaymentCmd = &cobra.Command{
-		Use:   "payment <receiver pubkey> <amount> <sender secret seed>",
+		Use:   "payment <receiver pubkey> <amount> <sender secret seed> <lower time bound> <upper time bound>",
 		Short: "Send <amount> BOSCoin from one wallet to another",
-		Args:  cobra.ExactArgs(3),
+		Args:  cobra.ExactArgs(5),
 		Run: func(c *cobra.Command, args []string) {
 			var err error
 			var amount common.Amount
 			var sender keypair.KP
 			var receiver keypair.KP
 			var endpoint *common.Endpoint
+			var lowerTimeBound time.Time
+			var upperTimeBound time.Time
 
 			// Receiver's public key
 			if receiver, err = keypair.Parse(args[0]); err != nil {
@@ -74,6 +77,19 @@ func init() {
 			if endpoint, err = common.ParseEndpoint(flagEndpoint); err != nil {
 				cmdcommon.PrintFlagsError(c, "--endpoint", err)
 			}
+
+			ltb, err := strconv.ParseInt(args[3], 10, 64)
+			if err != nil {
+				cmdcommon.PrintFlagsError(c, "<lower time bound>", err)
+			}
+			lowerTimeBound = time.Unix(ltb, 0)
+
+			utb, err := strconv.ParseInt(args[4], 10, 64)
+			if err != nil {
+				cmdcommon.PrintFlagsError(c, "<upper time bound>", err)
+			}
+			upperTimeBound = time.Unix(utb, 0)
+
 
 			// TODO: Validate input transaction (does the sender have enough money?)
 
@@ -115,14 +131,14 @@ func init() {
 
 			// TODO: Validate that the account doesn't already exists
 			if flagFreeze {
-				tx = MakeTransactionCreateAccount(sender, receiver, amount, senderAccount.SequenceID, true)
+				tx = MakeTransactionCreateAccount(sender, receiver, amount, senderAccount.SequenceID, true, lowerTimeBound, upperTimeBound)
 			} else if flagCreateAccount {
-				tx = MakeTransactionCreateAccount(sender, receiver, amount, senderAccount.SequenceID, false)
+				tx = MakeTransactionCreateAccount(sender, receiver, amount, senderAccount.SequenceID, false, lowerTimeBound, upperTimeBound)
 			} else {
-				tx = MakeTransactionPayment(sender, receiver, amount, senderAccount.SequenceID)
+				tx = MakeTransactionPayment(sender, receiver, amount, senderAccount.SequenceID, lowerTimeBound, upperTimeBound)
 			}
 
-			tx.Sign(sender, []byte(flagNetworkID))
+			tx.Sign(sender.Address(), sender, []byte(flagNetworkID))
 
 			// Send request
 			var retbody []byte
@@ -169,7 +185,7 @@ func init() {
 /// Returns:
 ///   `sebak.Transaction` = The generated `Transaction` creating the account
 ///
-func MakeTransactionCreateAccount(kpSource keypair.KP, kpDest keypair.KP, amount common.Amount, seqid uint64, isFrozen bool) transaction.Transaction {
+func MakeTransactionCreateAccount(kpSource keypair.KP, kpDest keypair.KP, amount common.Amount, seqid uint64, isFrozen bool, lowerTimeBound time.Time, upperTimeBound time.Time) transaction.Transaction {
 	var opb operation.CreateAccount
 	var fee common.Amount
 	if isFrozen {
@@ -187,11 +203,14 @@ func MakeTransactionCreateAccount(kpSource keypair.KP, kpDest keypair.KP, amount
 		B: opb,
 	}
 
+	timeBound := transaction.NewTimeBound(lowerTimeBound, upperTimeBound)
+
 	txBody := transaction.Body{
 		Source:     kpSource.Address(),
 		Fee:        fee,
 		SequenceID: seqid,
 		Operations: []operation.Operation{op},
+		TimeBound:  *timeBound,
 	}
 
 	tx := transaction.Transaction{
@@ -221,7 +240,7 @@ func MakeTransactionCreateAccount(kpSource keypair.KP, kpDest keypair.KP, amount
 /// Returns:
 ///  `sebak.Transaction` = The generated `Transaction` to do a payment
 ///
-func MakeTransactionPayment(kpSource keypair.KP, kpDest keypair.KP, amount common.Amount, seqid uint64) transaction.Transaction {
+func MakeTransactionPayment(kpSource keypair.KP, kpDest keypair.KP, amount common.Amount, seqid uint64, lowerTimeBound time.Time, upperTimeBound time.Time) transaction.Transaction {
 	opb := operation.NewPayment(kpDest.Address(), amount)
 
 	op := operation.Operation{
@@ -231,11 +250,14 @@ func MakeTransactionPayment(kpSource keypair.KP, kpDest keypair.KP, amount commo
 		B: opb,
 	}
 
+	timeBound := transaction.NewTimeBound(lowerTimeBound, upperTimeBound)
+
 	txBody := transaction.Body{
 		Source:     kpSource.Address(),
 		Fee:        common.BaseFee,
 		SequenceID: seqid,
 		Operations: []operation.Operation{op},
+		TimeBound:  *timeBound,
 	}
 
 	tx := transaction.Transaction{

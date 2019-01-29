@@ -82,7 +82,7 @@ func (p *HelperAPIBallotTest) MakeBallot(numberOfTxs int) (blt *ballot.Ballot) {
 
 		tx := transaction.MakeTransactionCreateAccount(networkID, kpA, kpB.Address(), common.Amount(1))
 		tx.B.SequenceID = accountA.SequenceID
-		tx.Sign(kpA, networkID)
+		tx.Sign(kpA.kpA, networkID)
 
 		txHashes = append(txHashes, tx.GetHash())
 		txs = append(txs, tx)

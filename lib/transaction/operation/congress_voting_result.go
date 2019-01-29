@@ -28,6 +28,7 @@ type CongressVotingResult struct {
 		Hash string   `json:"hash"`
 		Urls []string `json:"urls"`
 	} `json:"membership"`
+	Threshold OperationThreshold
 }
 
 func NewCongressVotingResult(
@@ -57,6 +58,7 @@ func NewCongressVotingResult(
 			ABS   uint64 `json:"abs"`
 		}{resultCount, resultYes, resultNo, resultABS},
 		CongressVotingHash: congressVotingHash,
+		Threshold:          Medium,
 	}
 }
 
@@ -108,4 +110,12 @@ func (o CongressVotingResult) IsWellFormed(common.Config) (err error) {
 
 func (o CongressVotingResult) HasFee() bool {
 	return true
+}
+
+func (o CongressVotingResult) HasThreshold() bool {
+	return true
+}
+
+func (o CongressVotingResult) GetThreshold() OperationThreshold {
+	return o.Threshold
 }

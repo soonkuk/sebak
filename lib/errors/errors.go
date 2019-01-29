@@ -115,4 +115,5 @@ var (
 	SnapshotNotFound                          = NewError(197, "snapshot not found")
 	SnapshotLimitReached                      = NewError(198, "snapshots over limit")
 	BallotsNotFound                           = NewError(199, "ballots not found")
+	OutOfTimeBound                            = NewError(200, "Transaction, out of time bound")
 )

@@ -81,3 +81,7 @@ func (o Inflation) GetAmount() common.Amount {
 func (o Inflation) HasFee() bool {
 	return false
 }
+
+func (o Inflation) HasThreshold() bool {
+	return false
+}

@@ -7,14 +7,16 @@ import (
 )
 
 type Payment struct {
-	Target string        `json:"target"`
-	Amount common.Amount `json:"amount"`
+	Target    string        `json:"target"`
+	Amount    common.Amount `json:"amount"`
+	Threshold OperationThreshold
 }
 
 func NewPayment(target string, amount common.Amount) Payment {
 	return Payment{
-		Target: target,
-		Amount: amount,
+		Target:    target,
+		Amount:    amount,
+		Threshold: Medium,
 	}
 }
 
@@ -42,4 +44,12 @@ func (o Payment) GetAmount() common.Amount {
 
 func (o Payment) HasFee() bool {
 	return true
+}
+
+func (o Payment) HasThreshold() bool {
+	return true
+}
+
+func (o Payment) GetThreshold() OperationThreshold {
+	return o.Threshold
 }

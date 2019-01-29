@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/btcsuite/btcutil/base58"
 
@@ -39,6 +40,7 @@ type Body struct {
 	Fee        common.Amount         `json:"fee"`
 	SequenceID uint64                `json:"sequence_id"`
 	Operations []operation.Operation `json:"operations"`
+	TimeBound  TimeBound             `json:"timeBound"`
 }
 
 func (tb Body) MakeHash() []byte {
@@ -61,7 +63,7 @@ func (t *Transaction) UnmarshalJSON(b []byte) (err error) {
 	return
 }
 
-func NewTransaction(source string, sequenceID uint64, ops ...operation.Operation) (tx Transaction, err error) {
+func NewTransaction(source string, sequenceID uint64, timeBound TimeBound, ops ...operation.Operation) (tx Transaction, err error) {
 	if len(ops) < 1 {
 		err = errors.TransactionEmptyOperations
 		return
@@ -83,6 +85,7 @@ func NewTransaction(source string, sequenceID uint64, ops ...operation.Operation
 		Fee:        fee,
 		SequenceID: sequenceID,
 		Operations: ops,
+		timeBound:  timeBound,
 	}
 
 	tx = Transaction{
@@ -104,6 +107,7 @@ var TransactionWellFormedCheckerFuncs = []common.CheckerFunc{
 	CheckOperationTypes,
 	CheckOperations,
 	CheckVerifySignature,
+	CheckTimeBound,
 }
 
 func (tx Transaction) IsWellFormed(conf common.Config) (err error) {
@@ -191,6 +195,20 @@ func (tx Transaction) TotalBaseFee() common.Amount {
 	return common.BaseFee.MustMult(opsHaveFee)
 }
 
+// Threshold returns the maximum threshold from operations.
+func (tx Transaction) Threshold() operation.OperationThreshold {
+	var threshold operation.OperationThreshold
+	for _, op := range tx.B.Operations {
+		if op.B.HasThreshold() {
+			opbm := op.B.(operation.MultiSignable)
+			if opbm.GetThreshold() > threshold {
+				threshold = opbm.GetThreshold()
+			}
+		}
+	}
+	return threshold
+}
+
 func (tx Transaction) Serialize() (encoded []byte, err error) {
 	encoded, err = json.Marshal(tx)
 	return
@@ -201,8 +219,8 @@ func (tx Transaction) String() string {
 	return string(encoded)
 }
 
-func (tx *Transaction) Sign(kp keypair.KP, networkID []byte) {
-	tx.B.Source = kp.Address()
+func (tx *Transaction) Sign(source string, kp keypair.KP, networkID []byte) {
+	tx.B.Source = source
 	tx.H.Hash = tx.B.MakeHashString()
 	signature, _ := keypair.MakeSignature(kp, networkID, tx.H.Hash)
 
@@ -217,4 +235,16 @@ func (tx Transaction) IsEmpty() bool {
 
 func (tx Transaction) IsValidVersion(version string) bool {
 	return tx.H.Version == version
+}
+
+type TimeBound struct {
+	lowerBound time.Time
+	upperBound time.Time
+}
+
+func NewTimeBound(lowerBound time.Time, upperBound time.Time) *TimeBound {
+	return &TimeBound{
+		lowerBound: lowerBound,
+		upperBound: upperBound,
+	}
 }

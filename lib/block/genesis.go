@@ -100,7 +100,7 @@ func MakeGenesisBlock(st *storage.LevelDBBackend, genesisAccount BlockAccount, c
 	}
 
 	kp := keypair.Master(string(networkID))
-	tx.Sign(kp, []byte(networkID))
+	tx.Sign(kp.Address(), kp, []byte(networkID))
 
 	blk = NewBlock(
 		"",

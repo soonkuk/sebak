@@ -7,16 +7,18 @@ import (
 )
 
 type CreateAccount struct {
-	Target string        `json:"target"`
-	Amount common.Amount `json:"amount"`
-	Linked string        `json:"linked,omitempty"`
+	Target    string             `json:"target"`
+	Amount    common.Amount      `json:"amount"`
+	Linked    string             `json:"linked,omitempty"`
+	Threshold OperationThreshold `json:"threshold"`
 }
 
 func NewCreateAccount(target string, amount common.Amount, linked string) CreateAccount {
 	return CreateAccount{
-		Target: target,
-		Amount: amount,
-		Linked: linked,
+		Target:    target,
+		Amount:    amount,
+		Linked:    linked,
+		Threshold: Medium,
 	}
 }
 
@@ -56,4 +58,12 @@ func (o CreateAccount) HasFee() bool {
 		return false
 	}
 	return true
+}
+
+func (o CreateAccount) HasThreshold() bool {
+	return true
+}
+
+func (o CreateAccount) GetThreshold() OperationThreshold {
+	return o.Threshold
 }

@@ -182,6 +182,7 @@ type Body interface {
 	//
 	IsWellFormed(common.Config) error
 	HasFee() bool
+	HasThreshold() bool
 }
 
 type Payable interface {
@@ -192,6 +193,10 @@ type Payable interface {
 
 type Targetable interface {
 	TargetAddress() string
+}
+
+type MultiSignable interface {
+	GetThreshold() OperationThreshold
 }
 
 func (o Operation) IsWellFormed(conf common.Config) (err error) {
@@ -267,3 +272,11 @@ func newBodyFromType(ty OperationType) (interface{}, error) {
 		return nil, errors.InvalidOperation
 	}
 }
+
+type OperationThreshold uint
+
+const (
+	Low OperationThreshold = iota + 1
+	Medium
+	High
+)

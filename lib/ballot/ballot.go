@@ -202,7 +202,7 @@ func (b *Ballot) TransactionsLength() int {
 
 func (b *Ballot) SignByProposer(kp keypair.KP, networkID []byte) {
 	ptx := b.ProposerTransaction()
-	ptx.Sign(kp, networkID)
+	ptx.Sign(kp.Address(), kp, networkID)
 	b.SetProposerTransaction(ptx)
 
 	b.B.Proposed.Confirmed = common.NowISO8601()
