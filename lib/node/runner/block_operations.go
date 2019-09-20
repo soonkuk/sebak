@@ -112,18 +112,26 @@ func (sb *SavingBlockOperations) continuousCheck() {
 	}
 }
 
-func (sb *SavingBlockOperations) checkBlockWorker(id int, blocks <-chan block.Block, errChan chan<- error) {
+func (sb *SavingBlockOperations) checkBlockWorker(id int, blocks <-chan block.Block, errChan chan<- error, chanClosed *int) {
 	var err error
 	var st *storage.LevelDBBackend
 
 	for blk := range blocks {
 		if st, err = sb.st.OpenBatch(); err != nil {
+			if *chanClosed == 1 {
+				sb.log.Debug("errChan is closed, ", "block", blk.Hash, "height", blk.Height)
+				return
+			}
 			errChan <- err
 			return
 		}
 
 		if err = sb.CheckByBlock(st, blk); err != nil {
 			st.Discard()
+			if *chanClosed == 1 {
+				sb.log.Debug("errChan is closed", "block", blk.Hash, "height", blk.Height)
+				return
+			}
 			errChan <- err
 			return
 		}
@@ -131,10 +139,17 @@ func (sb *SavingBlockOperations) checkBlockWorker(id int, blocks <-chan block.Bl
 		if err = st.Commit(); err != nil {
 			sb.log.Error("failed to commit", "block", blk.Hash, "height", blk.Height, "error", err)
 			st.Discard()
+			if *chanClosed == 1 {
+				sb.log.Debug("errChan is closed", "block", blk.Hash, "height", blk.Height)
+				return
+			}
 			errChan <- err
 			return
 		}
-
+		if *chanClosed == 1 {
+			sb.log.Info("errChan is closed", "block", blk.Hash, "height", blk.Height)
+			return
+		}
 		errChan <- nil
 	}
 }
@@ -162,8 +177,14 @@ func (sb *SavingBlockOperations) check(startBlockHeight uint64) (err error) {
 		numWorker = 1
 	}
 
+	chanClosed := new(int)
+	*chanClosed = -1
+	defer func() {
+		*chanClosed = 1
+	}()
+
 	for i := 1; i <= numWorker; i++ {
-		go sb.checkBlockWorker(i, blocks, errChan)
+		go sb.checkBlockWorker(i, blocks, errChan, chanClosed)
 	}
 
 	var lock sync.Mutex
@@ -176,7 +197,7 @@ func (sb *SavingBlockOperations) check(startBlockHeight uint64) (err error) {
 	}()
 
 	go func() {
-		var height uint64 = startBlockHeight
+		var height = startBlockHeight
 		var blk block.Block
 		for {
 			if blk, err = sb.getNextBlock(height); err != nil {
