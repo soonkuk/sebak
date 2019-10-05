@@ -50,6 +50,8 @@ func NewISAACStateManager(nr *NodeRunner, conf common.Config) *ISAACStateManager
 	return p
 }
 
+//setTheFirstProposedBlockTime func는 최초 proposed된 block의 time을
+//return한다. firstProposedBlockTime은 blocktime buffer를 계산할 때 사용된다.
 func (sm *ISAACStateManager) setTheFirstProposedBlockTime() {
 	if !sm.firstProposedBlockTime.IsZero() {
 		return
@@ -117,9 +119,11 @@ func getBallotProposedTime(timeStr string) time.Time {
 // Finally, `nextBlockTime - untilNow` is BlockTimeBuffer.
 func calculateBlockTimeBuffer(height uint64, goal, sinceGenesis, untilNow, delta time.Duration) time.Duration {
 	var blockTimeBuffer time.Duration
-
+	
+	//nextBlockTime은 블롯 생성시간을 5초로 했을 때 다음 blockheight의 예상 시간 빼기 현재까지
+	//실제 걸린시간이다.
 	nextBlockTime := 5*time.Second*time.Duration(height+1) - sinceGenesis
-
+	//nextBlock
 	min := goal - delta
 	max := goal + delta
 	if nextBlockTime < min {
@@ -137,12 +141,15 @@ func calculateBlockTimeBuffer(height uint64, goal, sinceGenesis, untilNow, delta
 	return blockTimeBuffer
 }
 
+// production에서는 실제 사용되고 있지 않음 테스트 용도
 func (sm *ISAACStateManager) SetTransitSignal(f func(consensus.ISAACState)) {
 	sm.Lock()
 	defer sm.Unlock()
 	sm.transitSignal = f
 }
 
+// ballot의 height, round가 statemanager의 현재 ballot의 것보다
+// 나중이면 sm의 stateTransit채널로 target isaacstate를 보낸다.
 func (sm *ISAACStateManager) TransitISAACState(height uint64, round uint64, ballotState ballot.State) {
 	sm.RLock()
 	current := sm.state
@@ -173,6 +180,7 @@ func (sm *ISAACStateManager) TransitISAACState(height uint64, round uint64, ball
 	}
 }
 
+// NextRound func은 ISAACStateManager의 현재 상태에서 같은 blockheight의 다음 round로 이동시키고자 할 때 사용한다. 
 func (sm *ISAACStateManager) NextRound() {
 	state := sm.State()
 	sm.nr.Log().Debug("begin ISAACStateManager.NextRound()", "height", state.Height, "round", state.Round, "state", state.BallotState)
@@ -180,11 +188,13 @@ func (sm *ISAACStateManager) NextRound() {
 	sm.TransitISAACState(state.Height, newRound, ballot.StateINIT)
 }
 
+// NextHeight func은 ISAACStateManager의 현재 상태에서 다음 blockheight로 이동시킬 때 사용한다.
 func (sm *ISAACStateManager) NextHeight() {
 	h := sm.nr.consensus.LatestBlock().Height
 	sm.nr.Log().Debug("begin ISAACStateManager.NextHeight()", "height", h)
 	sm.TransitISAACState(h, 0, ballot.StateINIT)
 }
+
 
 // In `Start()` method a node proposes ballot.
 // Or it sets or resets timeout. If it is expired, it broadcasts B(`EXP`).
@@ -193,10 +203,12 @@ func (sm *ISAACStateManager) Start() {
 	sm.nr.localNode.SetConsensus()
 	sm.nr.Log().Debug("begin ISAACStateManager.Start()", "ISAACState", sm.State())
 	go func() {
+		// 1시간 후로 타이머를 설정한다.
 		timer := time.NewTimer(time.Duration(1 * time.Hour))
 		begin := time.Now() // measure for block interval time
 		for {
 			select {
+			// 1시간 후로 설정한 타이머가 끝나면  
 			case <-timer.C:
 				sm.nr.Log().Debug("timeout", "ISAACState", sm.State())
 				switch sm.State().BallotState {
@@ -224,7 +236,8 @@ func (sm *ISAACStateManager) Start() {
 					sm.nr.Log().Error("timeout", "ISAACState", sm.State())
 					sm.NextRound()
 				}
-
+			// statemTransit 채널에서 메세지를 받은 경우 채널에서 받은 상태가 stateManager의
+			// 현재 state보다 늦은 state이면 
 			case state := <-sm.stateTransit:
 				current := sm.State()
 				if !current.IsLater(state) {
@@ -242,6 +255,8 @@ func (sm *ISAACStateManager) Start() {
 					sm.resetTimer(timer, state.BallotState)
 				}
 				sm.setState(state)
+				// sm.transitSignal()가 현재는 설정되어 있지 않고 empty 함수이기 때문에
+				// 아무 동작도 안한다.
 				sm.transitSignal(state)
 
 			case <-sm.stop:
@@ -286,9 +301,9 @@ func (sm *ISAACStateManager) resetTimer(timer *time.Timer, state ballot.State) {
 	}
 }
 
-// In proposeOrWait,
-// if nr.localNode is proposer, it proposes new ballot,
-// but if not, it waits for receiving ballot from the other proposer.
+// proposeOrWait func makes node to propose or to wait.
+// If nr.localNode is selected as a proposer, the proposer proposes new ballot,
+// else the node waits for receiving ballot from the other proposer.
 func (sm *ISAACStateManager) proposeOrWait(timer *time.Timer, round uint64) {
 	timer.Reset(time.Duration(1 * time.Hour))
 	sm.setBlockTimeBuffer()
