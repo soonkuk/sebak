@@ -82,6 +82,7 @@ func BallotUnmarshal(c common.Checker, args ...interface{}) (err error) {
 	}
 
 	checker.Ballot = b
+	// checker.IsMine은 Ballot을 전달해준 노드가 Local Node인지를 체크하는 boolean 값
 	checker.IsMine = checker.Ballot.Source() == checker.LocalNode.Address()
 
 	checker.Log = checker.Log.New(logging.Ctx{
@@ -102,7 +103,7 @@ func BallotUnmarshal(c common.Checker, args ...interface{}) (err error) {
 // `CollectTxFee`.
 func BallotValidateOperationBodyCollectTxFee(c common.Checker, args ...interface{}) (err error) {
 	checker := c.(*BallotChecker)
-
+	// Validate하는 Ballot이 내가 Broadcast한 ballot이라면 통과 (?)
 	if checker.IsMine {
 		return
 	}
@@ -124,7 +125,7 @@ func BallotValidateOperationBodyCollectTxFee(c common.Checker, args ...interface
 // BallotValidateOperationBodyInflation validates `Inflation`
 func BallotValidateOperationBodyInflation(c common.Checker, args ...interface{}) (err error) {
 	checker := c.(*BallotChecker)
-
+	// Validate하는 Ballot이 내가 Broadcast한 ballot이라면 통과 (?)
 	if checker.IsMine {
 		return
 	}
@@ -169,6 +170,8 @@ func BallotValidateOperationBodyInflation(c common.Checker, args ...interface{})
 // is from the known validators.
 func BallotNotFromKnownValidators(c common.Checker, args ...interface{}) (err error) {
 	checker := c.(*BallotChecker)
+	// Unknown Validator한테 받은 Ballot인지 확인하는데
+	// Validate하는 Ballot이 내가 Broadcast한 ballot이라면 통과 (?)
 	if checker.IsMine {
 		return
 	}
@@ -186,15 +189,20 @@ func BallotNotFromKnownValidators(c common.Checker, args ...interface{}) (err er
 // BallotCheckSYNC performs sync by considering sync condition.
 // And to participate in the consensus,
 // update the latestblock by referring to the database.
+// BallotCheckSYNC는 받은 Ballot으로 인해 sync가 일어나게 되는지 check하는 func인 것 같음.
+// Sync를 안해도 되는 이유들이 발견되면 return nil을 하는 것 같음.
 func BallotCheckSYNC(c common.Checker, args ...interface{}) error {
 	checker := c.(*BallotChecker)
-
+	// Validate하는 Ballot이 내가 Broadcast한 ballot이라면 통과 (?)
 	if checker.IsMine {
 		return nil
 	}
 
 	var err error
 
+	// latest block이 받은 ballot의 votingBasis height보다 크거나 같다면
+	// 같다면 voting basis와 latest blockheight가 걑은 것이고
+	// 크다면 받은 ballot이 뒤쳐진 ballot이기 때문에 return nil
 	is := checker.NodeRunner.Consensus()
 	b := checker.Ballot
 	latestHeight := is.LatestBlock().Height
@@ -208,7 +216,9 @@ func BallotCheckSYNC(c common.Checker, args ...interface{}) error {
 		return nil
 	}
 
-	if !isBallotAcceptYesOrExp(b) {
+	// Ballot Accept 상태에서 Voting이 Yes 또는 Exp이 아니라면 return nil
+	// Voting이 No라면 잘못된 transaction들이 있어서 No 했을 수 있을므로 (?)
+	if !isBallotAcceptAndYesOrExp(b) {
 		return nil
 	}
 
@@ -230,6 +240,7 @@ func BallotCheckSYNC(c common.Checker, args ...interface{}) error {
 
 	result, votingHole, finished := is.CanGetVotingResult(b)
 
+	// finished 이고 votingHole이 NO인 경우가 아니면
 	if !finished || (votingHole != voting.YES) {
 		checker.NodeRunner.Log().Debug(
 			"return in BallotCheckSYNC; !finished || (votingHole != voting.YES)",
@@ -303,7 +314,7 @@ func BallotCheckSYNC(c common.Checker, args ...interface{}) error {
 	}
 }
 
-func isBallotAcceptYesOrExp(b ballot.Ballot) bool {
+func isBallotAcceptAndYesOrExp(b ballot.Ballot) bool {
 	return b.State() == ballot.StateACCEPT && (b.Vote() == voting.YES || b.Vote() == voting.EXP)
 }
 
@@ -448,10 +459,11 @@ func BallotCheckResult(c common.Checker, args ...interface{}) (err error) {
 
 func ExpiredInSIGN(c common.Checker, args ...interface{}) (err error) {
 	checker := c.(*BallotChecker)
+	// voting이 종료되고 VotingHole의 결과가 EXP인 경우가 아니면 return
 	if !checker.VotingFinished || checker.FinishedVotingHole != voting.EXP {
 		return
 	}
-
+	// SIGN state에서 voting이 종료되고 VotingHole의 결과가 EXP이면 ExpiredBallot을 Broadcast한다.
 	checker.NodeRunner.Log().Debug("Expired in SIGN")
 
 	newBallot := checker.Ballot
@@ -461,6 +473,7 @@ func ExpiredInSIGN(c common.Checker, args ...interface{}) (err error) {
 
 	checker.NodeRunner.BroadcastBallot(newBallot)
 
+	//
 	basis := checker.Ballot.VotingBasis()
 	checker.NodeRunner.Consensus().SetLatestVotingBasis(basis)
 	checker.NodeRunner.isaacStateManager.NextRound()
@@ -727,22 +740,29 @@ func FinishedBallotStore(c common.Checker, args ...interface{}) error {
 		return nil
 	}
 
+	// Voting이 Finished인 상태에서 VotingHole의 상태에 따라서
 	basis := checker.Ballot.VotingBasis()
 	var err error
 	switch checker.FinishedVotingHole {
+	// VotingHole이 Yes이면 ballot의 상태를 ALLCONFIRM으로 transit한다.
 	case voting.YES:
 		checker.NodeRunner.TransitISAACState(basis, ballot.StateALLCONFIRM)
 		if err = saveBlock(checker); err != nil {
 			return err
 		}
+		// Block을 Save한 후에
 		defer checker.NodeRunner.NextHeight()
 		checker.NodeRunner.Consensus().SetLatestVotingBasis(basis)
-
+		// checker.LatestBlockSources는 block안에 있는 tx들의 source 리스트이다.
+		// RemoveFromSources는 TransactionPool에서 source에 해당하는 source를 제거한다.
 		checker.NodeRunner.TransactionPool.RemoveFromSources(checker.LatestBlockSources...)
+		// basis의 Height보다 낮은 runningRound들은 삭제한다.
 		checker.NodeRunner.Consensus().RemoveRunningRoundsLowerOrEqualHeight(basis.Height)
+		// basis의 Height보다 Lower or Equal Height의 ballotSendRecord를 제거한다.
 		checker.NodeRunner.RemoveSendRecordsLowerThanOrEqualHeight(basis.Height)
 
 		err = NewCheckerStopCloseConsensus(checker, "ballot got consensus and will be stored")
+	// VotingHole이 No이거나 EXP이면
 	case voting.NO, voting.EXP:
 		checker.NodeRunner.Consensus().SetLatestVotingBasis(basis)
 		checker.NodeRunner.isaacStateManager.NextRound()

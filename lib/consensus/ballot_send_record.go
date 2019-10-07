@@ -6,7 +6,7 @@ import (
 	logging "github.com/inconshreveable/log15"
 )
 
-// Record the ballot sent by ISAACstate
+// BallotSendRecord func records the ballot sent by ISAACstate
 // This is to avoid sending another voting result in the same ISAACState.
 type BallotSendRecord struct {
 	sync.RWMutex

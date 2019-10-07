@@ -352,6 +352,8 @@ func (is *ISAAC) LatestBlock() block.Block {
 	return block.GetLatestBlock(is.storage)
 }
 
+// RemoveRunningRoundsLowerOrEqualHeight func는 ISAAC의 RunningRounds중에서
+// runningRound의 VotingBasis의 Height가 비교하려는 height보다 낮거나 같은 경우는 삭제한다.
 func (is *ISAAC) RemoveRunningRoundsLowerOrEqualHeight(height uint64) {
 	for hash, runningRound := range is.RunningRounds {
 		if runningRound.VotingBasis.Height > height {
@@ -366,6 +368,8 @@ func (is *ISAAC) RemoveRunningRoundsLowerOrEqualHeight(height uint64) {
 	}
 }
 
+// RemoveRunningRoundsLowerOrEqualBasis func는 height가 낮거나 같은 height라도
+// Round가 낮은 runningRound들을 삭제한다.
 func (is *ISAAC) RemoveRunningRoundsLowerOrEqualBasis(basis voting.Basis) {
 	for hash, runningRound := range is.RunningRounds {
 		if runningRound.VotingBasis.Height > basis.Height {

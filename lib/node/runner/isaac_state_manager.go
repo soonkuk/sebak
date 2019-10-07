@@ -119,7 +119,7 @@ func getBallotProposedTime(timeStr string) time.Time {
 // Finally, `nextBlockTime - untilNow` is BlockTimeBuffer.
 func calculateBlockTimeBuffer(height uint64, goal, sinceGenesis, untilNow, delta time.Duration) time.Duration {
 	var blockTimeBuffer time.Duration
-	
+
 	//nextBlockTime은 블롯 생성시간을 5초로 했을 때 다음 blockheight의 예상 시간 빼기 현재까지
 	//실제 걸린시간이다.
 	nextBlockTime := 5*time.Second*time.Duration(height+1) - sinceGenesis
@@ -141,15 +141,17 @@ func calculateBlockTimeBuffer(height uint64, goal, sinceGenesis, untilNow, delta
 	return blockTimeBuffer
 }
 
-// production에서는 실제 사용되고 있지 않음 테스트 용도
+// SetTransitSignal func은 production에서는 실제 사용되고 있지 않음 테스트 용도
 func (sm *ISAACStateManager) SetTransitSignal(f func(consensus.ISAACState)) {
 	sm.Lock()
 	defer sm.Unlock()
 	sm.transitSignal = f
 }
 
-// ballot의 height, round가 statemanager의 현재 ballot의 것보다
+// TransitISAACState func은 ballot의 height, round가 statemanager의 현재 ballot의 것보다
 // 나중이면 sm의 stateTransit채널로 target isaacstate를 보낸다.
+// ISAACStateManager의 TransitISAACState func은 NodeRunner의 TransitISAACState func에 의해서 호출되고
+// ISAACStateManager의 NextHeight와 NextRound에 의해서도 호출된다.
 func (sm *ISAACStateManager) TransitISAACState(height uint64, round uint64, ballotState ballot.State) {
 	sm.RLock()
 	current := sm.state
@@ -180,7 +182,8 @@ func (sm *ISAACStateManager) TransitISAACState(height uint64, round uint64, ball
 	}
 }
 
-// NextRound func은 ISAACStateManager의 현재 상태에서 같은 blockheight의 다음 round로 이동시키고자 할 때 사용한다. 
+// NextRound func은 ISAACStateManager의 현재 상태에서 같은 blockheight의 다음 round로 이동시키고자 할 때 사용한다.
+// NextRound는 ballot state가 accept단계에서 timeOut이 발생하는 경우 호출된다.
 func (sm *ISAACStateManager) NextRound() {
 	state := sm.State()
 	sm.nr.Log().Debug("begin ISAACStateManager.NextRound()", "height", state.Height, "round", state.Round, "state", state.BallotState)
@@ -195,27 +198,30 @@ func (sm *ISAACStateManager) NextHeight() {
 	sm.TransitISAACState(h, 0, ballot.StateINIT)
 }
 
-
-// In `Start()` method a node proposes ballot.
-// Or it sets or resets timeout. If it is expired, it broadcasts B(`EXP`).
+// Start func is a method to make node propose ballot.
+// And it sets or resets timeout. If it is expired, it broadcasts B(`EXP`).
 // And it manages the node round.
 func (sm *ISAACStateManager) Start() {
 	sm.nr.localNode.SetConsensus()
 	sm.nr.Log().Debug("begin ISAACStateManager.Start()", "ISAACState", sm.State())
 	go func() {
-		// 1시간 후로 타이머를 설정한다.
+		// default로는 충분한 시간(1시간)만큼 타이머를 설정한다.
 		timer := time.NewTimer(time.Duration(1 * time.Hour))
 		begin := time.Now() // measure for block interval time
 		for {
 			select {
-			// 1시간 후로 설정한 타이머가 끝나면  
+			// timeout이 되면 ballot의 상태 경우에 따라서 동작한다.
 			case <-timer.C:
 				sm.nr.Log().Debug("timeout", "ISAACState", sm.State())
 				switch sm.State().BallotState {
+				// ballot.StateINIT의 경우 timer Out이 되면 ballot.StateSIGN으로 상태가 넘어가고 timer를 reset한다. (?)
 				case ballot.StateINIT:
 					sm.setBallotState(ballot.StateSIGN)
 					sm.transitSignal(sm.State())
 					sm.resetTimer(timer, ballot.StateSIGN)
+				// ballot.StateSIGN의 경우 timer Out이 되었을 때 consensus상태이고 현재 ISAACState를 send했다는 기록이 있으면 case문을 빠져나온다.
+				// ISAACState를 send했다는 것은 node가 voting하고 전송했다는 것이므로 정상적으로 상태를 진행했다는 것으로 생각할 수 있다.
+				// timer Out이 되고 consensus 상태인데 현재 ISAACState를 아직 send하지 않았으면 broadcastExpiredBallot을 한다.
 				case ballot.StateSIGN:
 					if sm.nr.localNode.State() == node.StateCONSENSUS {
 						if sm.nr.BallotSendRecord().Sent(sm.State()) {
@@ -224,6 +230,9 @@ func (sm *ISAACStateManager) Start() {
 						}
 						go sm.broadcastExpiredBallot(sm.State().Round, ballot.StateSIGN)
 					}
+				// ballot.StateACCEPT의 경우 timer Out이 되었을 때 consensus상태이고 현재 ISAACState를 send했다는 기록이 있으면 case문을 빠져나온다.
+				// ISAACState를 send했다는 것은 node가 voting하고 전송했다는 것이므로 정상적으로 상태를 진행했다는 것으로 생각할 수 있다.
+				// timer Out이 되고 consensus 상태인데 현재 ISAACState를 아직 send하지 않았으면 broadcastExpiredBallot을 한다.
 				case ballot.StateACCEPT:
 					if sm.nr.localNode.State() == node.StateCONSENSUS {
 						if sm.nr.BallotSendRecord().Sent(sm.State()) {
@@ -232,33 +241,45 @@ func (sm *ISAACStateManager) Start() {
 						}
 						go sm.broadcastExpiredBallot(sm.State().Round, ballot.StateACCEPT)
 					}
+				// ballot.StateALLCONFIRM의 경우 timer Out이 되었을 때
 				case ballot.StateALLCONFIRM:
 					sm.nr.Log().Error("timeout", "ISAACState", sm.State())
 					sm.NextRound()
 				}
 			// statemTransit 채널에서 메세지를 받은 경우 채널에서 받은 상태가 stateManager의
-			// 현재 state보다 늦은 state이면 
+			// 현재 state보다 후의 state이면 ballot의 상태에 따라서 stateManager의 상태를 전이한다.
+			// 노드가 propose를 하는 경우는 stateTransit 채널에서 메세지를 받았는데 그 메세지에 의해서
+			// ballot의 state가 INIT으로 설정되어서 proposer로 설정된 경우에만 해당된다.
+			// 만약 새로운 ballot가 propose되지 않는다면 이 route를 타고 동작되지 않고 있기 때문일 것이다.
+			// stateTransit에 state 메세지를 전달하는 경우는 한가지 밖에 없다.
+			// ISAACStateManager.TransitISAACState func에 의해서만 state 메세지가 채널로 전달된다.
+			// 이 함수내에서도 argument로 받은 state가 지금 처리하는 state보다 후의 경우에만 전달한다.
 			case state := <-sm.stateTransit:
 				current := sm.State()
 				if !current.IsLater(state) {
 					sm.nr.Log().Debug("break; target is before than or equal to current", "current", current, "target", state)
 					break
 				}
-
+				// 전달받은 state가 init이고 consensus 상태이면 propose하거나 wait한다.
+				// ballot의 state가 sign이나 accept이면 stateManager의 1시간으로 설정했던 timer를 BallotState에 맞게 reset한다.
+				// 그러면 실제로 투표와 broadcast는 어디서 동작되는지 확인이 필요함.
 				if state.BallotState == ballot.StateINIT {
 					begin = metrics.Consensus.SetBlockIntervalSeconds(begin)
 
 					if sm.nr.localNode.State() == node.StateCONSENSUS {
 						sm.proposeOrWait(timer, state.Round)
 					}
+					// ballot.StateINIT가 아니면 BallotState에 따라서 resetTimer를 한다.
 				} else {
 					sm.resetTimer(timer, state.BallotState)
 				}
+				// stateManager의 state를 stateTransit 채널을 통해서 받은 state(ISAACState)로 설정한다.
 				sm.setState(state)
 				// sm.transitSignal()가 현재는 설정되어 있지 않고 empty 함수이기 때문에
 				// 아무 동작도 안한다.
 				sm.transitSignal(state)
 
+			// stateManager의 stop채널에서 signal을 받으면 종료한다.
 			case <-sm.stop:
 				return
 			}
@@ -311,7 +332,9 @@ func (sm *ISAACStateManager) proposeOrWait(timer *time.Timer, round uint64) {
 	proposer := sm.nr.Consensus().SelectProposer(height, round)
 	log.Debug("selected proposer", "proposer", proposer)
 
+	// node 자신이 proposer이면 blockTimeBuffer만큼 시간지체한 후에 새로운 Ballot을 propose한다.
 	if proposer == sm.nr.localNode.Address() {
+		// blockTimeBuffer의 time.Sleep을 propose하기 전에 하고 있음.
 		time.Sleep(sm.blockTimeBuffer)
 		if _, err := sm.nr.proposeNewBallot(round); err == nil {
 			log.Debug("propose new ballot", "proposer", proposer, "round", round, "ballotState", ballot.StateSIGN)
@@ -319,6 +342,7 @@ func (sm *ISAACStateManager) proposeOrWait(timer *time.Timer, round uint64) {
 			log.Error("failed to proposeNewBallot", "height", height, "error", err)
 		}
 		timer.Reset(sm.Conf.TimeoutINIT)
+		// node 자신이 proposer가 아니면 timer를 blockTimerBuffer + INIT의 Timeout의 duraton만큼 설정한다.
 	} else {
 		timer.Reset(sm.blockTimeBuffer + sm.Conf.TimeoutINIT)
 	}

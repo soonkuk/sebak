@@ -18,7 +18,7 @@ type Ballot struct {
 
 func NewBallot(fromAddr string, proposerAddr string, basis voting.Basis, transactions []string) (b *Ballot) {
 	body := BallotBody{
-		Source: fromAddr,
+		Source: fromAddr, // Source는 Ballot을 전달해준 node의 address
 		Proposed: BallotBodyProposed{
 			Proposer:     proposerAddr,
 			VotingBasis:  basis,

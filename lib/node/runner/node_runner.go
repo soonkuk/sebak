@@ -622,6 +622,9 @@ func (nr *NodeRunner) NextHeight() {
 	nr.isaacStateManager.NextHeight()
 }
 
+// RemoveSendRecordsLowerThanOrEqualHeight func는 nodeRunner의 ballotSendRecord 기록중에서
+// Lower or Equal heigt를 갖고 있는 기록을 삭제한다.
+// nodeRunner의 ballotSendRecord는 send한 ballot의 state들의 기록한 map이다.
 func (nr *NodeRunner) RemoveSendRecordsLowerThanOrEqualHeight(height uint64) {
 	nr.ballotSendRecord.RemoveLowerThanOrEqualHeight(height)
 }
@@ -631,6 +634,8 @@ var NewBallotTransactionCheckerFuncs = []common.CheckerFunc{
 	BallotTransactionsSameSource,
 }
 
+// proposeNewBallot은 TransactionPool에서 transaction을 모아서 ColletTxFee와 BlockInflation tx를 포함한
+// ballot을 만들어서 broadcast한다.
 func (nr *NodeRunner) proposeNewBallot(round uint64) (ballot.Ballot, error) {
 	b := nr.consensus.LatestBlock()
 	basis := voting.Basis{
